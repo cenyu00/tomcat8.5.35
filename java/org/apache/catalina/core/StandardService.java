@@ -41,11 +41,7 @@ import org.apache.tomcat.util.res.StringManager;
 
 
 /**
- * Standard implementation of the <code>Service</code> interface.  The
- * associated Container is generally an instance of Engine, but this is
- * not required.
- *
- * @author Craig R. McClanahan
+ * Server接口的标准实现，
  */
 
 public class StandardService extends LifecycleMBeanBase implements Service {
@@ -56,41 +52,51 @@ public class StandardService extends LifecycleMBeanBase implements Service {
     // ----------------------------------------------------- Instance Variables
 
     /**
-     * The name of this service.
+     * service的名称
      */
     private String name = null;
 
 
     /**
-     * The string manager for this package.
+     * 包的字符串管理
      */
     private static final StringManager sm =
         StringManager.getManager(Constants.Package);
 
     /**
-     * The <code>Server</code> that owns this Service, if any.
+     * Service所属的Server
      */
     private Server server = null;
 
     /**
-     * The property change support for this component.
+     * 属性改变的监听管理
      */
     protected final PropertyChangeSupport support = new PropertyChangeSupport(this);
 
 
     /**
-     * The set of Connectors associated with this Service.
+     * 跟这个Service相关联的Connector集合
      */
     protected Connector connectors[] = new Connector[0];
+
+    /**
+     * Connector的锁
+     */
     private final Object connectorsLock = new Object();
 
     /**
-     *
+     * 线程池
      */
     protected final ArrayList<Executor> executors = new ArrayList<>();
 
+    /**
+     * Servlet的引擎
+     */
     private Engine engine = null;
 
+    /**
+     * 类加载器
+     */
     private ClassLoader parentClassLoader = null;
 
     /**
@@ -100,7 +106,7 @@ public class StandardService extends LifecycleMBeanBase implements Service {
 
 
     /**
-     * Mapper listener.
+     * Mapper 监听器
      */
     protected final MapperListener mapperListener = new MapperListener(this);
 
@@ -205,10 +211,7 @@ public class StandardService extends LifecycleMBeanBase implements Service {
     // --------------------------------------------------------- Public Methods
 
     /**
-     * Add a new Connector to the set of defined Connectors, and associate it
-     * with this Service's Container.
-     *
-     * @param connector The Connector to be added
+     * 添加一个Connector
      */
     @Override
     public void addConnector(Connector connector) {
@@ -283,8 +286,9 @@ public class StandardService extends LifecycleMBeanBase implements Service {
                     break;
                 }
             }
-            if (j < 0)
+            if (j < 0) {
                 return;
+            }
             if (connectors[j].getState().isAvailable()) {
                 try {
                     connectors[j].stop();
@@ -298,8 +302,9 @@ public class StandardService extends LifecycleMBeanBase implements Service {
             int k = 0;
             Connector results[] = new Connector[connectors.length - 1];
             for (int i = 0; i < connectors.length; i++) {
-                if (i != j)
+                if (i != j) {
                     results[k++] = connectors[i];
+                }
             }
             connectors = results;
 
@@ -375,8 +380,9 @@ public class StandardService extends LifecycleMBeanBase implements Service {
     public Executor getExecutor(String executorName) {
         synchronized (executors) {
             for (Executor executor: executors) {
-                if (executorName.equals(executor.getName()))
+                if (executorName.equals(executor.getName())) {
                     return executor;
+                }
             }
         }
         return null;
@@ -410,43 +416,44 @@ public class StandardService extends LifecycleMBeanBase implements Service {
      *  that prevents this component from being used
      */
     @Override
-    protected void startInternal() throws LifecycleException {
+protected void startInternal() throws LifecycleException {
 
-        if(log.isInfoEnabled())
-            log.info(sm.getString("standardService.start.name", this.name));
-        setState(LifecycleState.STARTING);
+    //1.设置生命周期的状态
+    setState(LifecycleState.STARTING);
 
-        // Start our defined Container first
-        if (engine != null) {
-            synchronized (engine) {
-                engine.start();
-            }
+    //2.执行engine的start
+    if (engine != null) {
+        synchronized (engine) {
+            engine.start();
         }
+    }
 
-        synchronized (executors) {
-            for (Executor executor: executors) {
-                executor.start();
-            }
+    //3.执行executor的start
+    synchronized (executors) {
+        for (Executor executor: executors) {
+            executor.start();
         }
+    }
 
-        mapperListener.start();
+    //4.执行mapper监听器的start
+    mapperListener.start();
 
-        // Start our defined Connectors second
-        synchronized (connectorsLock) {
-            for (Connector connector: connectors) {
-                try {
-                    // If it has already failed, don't try and start it
-                    if (connector.getState() != LifecycleState.FAILED) {
-                        connector.start();
-                    }
-                } catch (Exception e) {
-                    log.error(sm.getString(
-                            "standardService.connector.startFailed",
-                            connector), e);
+    // 5.执行connect的start
+    synchronized (connectorsLock) {
+        for (Connector connector: connectors) {
+            try {
+                // If it has already failed, don't try and start it
+                if (connector.getState() != LifecycleState.FAILED) {
+                    connector.start();
                 }
+            } catch (Exception e) {
+                log.error(sm.getString(
+                        "standardService.connector.startFailed",
+                        connector), e);
             }
         }
     }
+}
 
 
     /**
@@ -458,67 +465,67 @@ public class StandardService extends LifecycleMBeanBase implements Service {
      *  that needs to be reported
      */
     @Override
-    protected void stopInternal() throws LifecycleException {
+protected void stopInternal() throws LifecycleException {
 
-        // Pause connectors first
-        synchronized (connectorsLock) {
-            for (Connector connector: connectors) {
-                try {
-                    connector.pause();
-                } catch (Exception e) {
-                    log.error(sm.getString(
-                            "standardService.connector.pauseFailed",
-                            connector), e);
-                }
-                // Close server socket if bound on start
-                // Note: test is in AbstractEndpoint
-                connector.getProtocolHandler().closeServerSocketGraceful();
+    //先暂停或者关闭Connector
+    synchronized (connectorsLock) {
+        for (Connector connector: connectors) {
+            try {
+                //暂停
+                connector.pause();
+            } catch (Exception e) {
+                log.error(sm.getString(
+                        "standardService.connector.pauseFailed",
+                        connector), e);
             }
+
+            //如果有绑定socket，就关闭掉
+            connector.getProtocolHandler().closeServerSocketGraceful();
         }
+    }
 
-        if(log.isInfoEnabled())
-            log.info(sm.getString("standardService.stop.name", this.name));
-        setState(LifecycleState.STOPPING);
 
-        // Stop our defined Container second
-        if (engine != null) {
-            synchronized (engine) {
-                engine.stop();
+    setState(LifecycleState.STOPPING);
+
+    // 调用engine的stop()方法
+    if (engine != null) {
+        synchronized (engine) {
+            engine.stop();
+        }
+    }
+
+    // 调用Connector的stop()方法
+    synchronized (connectorsLock) {
+        for (Connector connector: connectors) {
+            if (!LifecycleState.STARTED.equals(
+                    connector.getState())) {
+                // Connectors only need stopping if they are currently
+                // started. They may have failed to start or may have been
+                // stopped (e.g. via a JMX call)
+                continue;
             }
-        }
-
-        // Now stop the connectors
-        synchronized (connectorsLock) {
-            for (Connector connector: connectors) {
-                if (!LifecycleState.STARTED.equals(
-                        connector.getState())) {
-                    // Connectors only need stopping if they are currently
-                    // started. They may have failed to start or may have been
-                    // stopped (e.g. via a JMX call)
-                    continue;
-                }
-                try {
-                    connector.stop();
-                } catch (Exception e) {
-                    log.error(sm.getString(
-                            "standardService.connector.stopFailed",
-                            connector), e);
-                }
-            }
-        }
-
-        // If the Server failed to start, the mapperListener won't have been
-        // started
-        if (mapperListener.getState() != LifecycleState.INITIALIZED) {
-            mapperListener.stop();
-        }
-
-        synchronized (executors) {
-            for (Executor executor: executors) {
-                executor.stop();
+            try {
+                connector.stop();
+            } catch (Exception e) {
+                log.error(sm.getString(
+                        "standardService.connector.stopFailed",
+                        connector), e);
             }
         }
     }
+
+    // 调用mapperListener的stop()方法
+    if (mapperListener.getState() != LifecycleState.INITIALIZED) {
+        mapperListener.stop();
+    }
+
+    //调用executor的stop()方法
+    synchronized (executors) {
+        for (Executor executor: executors) {
+            executor.stop();
+        }
+    }
+}
 
 
     /**
@@ -526,70 +533,75 @@ public class StandardService extends LifecycleMBeanBase implements Service {
      * to bind to restricted ports under Unix operating environments.
      */
     @Override
-    protected void initInternal() throws LifecycleException {
+protected void initInternal() throws LifecycleException {
 
-        super.initInternal();
+    //1.父类执行init
+    super.initInternal();
 
-        if (engine != null) {
-            engine.init();
+    //2.执行servlet的引擎engine的init
+    if (engine != null) {
+        engine.init();
+    }
+
+    // 3.执行Executors的init
+    for (Executor executor : findExecutors()) {
+        if (executor instanceof JmxEnabled) {
+            ((JmxEnabled) executor).setDomain(getDomain());
         }
+        executor.init();
+    }
 
-        // Initialize any Executors
-        for (Executor executor : findExecutors()) {
-            if (executor instanceof JmxEnabled) {
-                ((JmxEnabled) executor).setDomain(getDomain());
-            }
-            executor.init();
-        }
+    // 4.mapper监听器的init
+    mapperListener.init();
 
-        // Initialize mapper listener
-        mapperListener.init();
+    // 5.connect的init
+    synchronized (connectorsLock) {
+        for (Connector connector : connectors) {
+            try {
+                connector.init();
+            } catch (Exception e) {
+                String message = sm.getString(
+                        "standardService.connector.initFailed", connector);
+                log.error(message, e);
 
-        // Initialize our defined Connectors
-        synchronized (connectorsLock) {
-            for (Connector connector : connectors) {
-                try {
-                    connector.init();
-                } catch (Exception e) {
-                    String message = sm.getString(
-                            "standardService.connector.initFailed", connector);
-                    log.error(message, e);
-
-                    if (Boolean.getBoolean("org.apache.catalina.startup.EXIT_ON_INIT_FAILURE"))
-                        throw new LifecycleException(message);
+                if (Boolean.getBoolean("org.apache.catalina.startup.EXIT_ON_INIT_FAILURE")) {
+                    throw new LifecycleException(message);
                 }
             }
         }
     }
+}
 
 
     @Override
-    protected void destroyInternal() throws LifecycleException {
-        mapperListener.destroy();
+protected void destroyInternal() throws LifecycleException {
+    //1.调用mapper的destroy()方法
+    mapperListener.destroy();
 
-        // Destroy our defined Connectors
-        synchronized (connectorsLock) {
-            for (Connector connector : connectors) {
-                try {
-                    connector.destroy();
-                } catch (Exception e) {
-                    log.error(sm.getString(
-                            "standardService.connector.destroyFailed", connector), e);
-                }
+    //2.调用每个Connector的destroy()方法
+    synchronized (connectorsLock) {
+        for (Connector connector : connectors) {
+            try {
+                connector.destroy();
+            } catch (Exception e) {
+                log.error(sm.getString(
+                        "standardService.connector.destroyFailed", connector), e);
             }
         }
-
-        // Destroy any Executors
-        for (Executor executor : findExecutors()) {
-            executor.destroy();
-        }
-
-        if (engine != null) {
-            engine.destroy();
-        }
-
-        super.destroyInternal();
     }
+
+    //3.调用Executor的destroy()的方法
+    for (Executor executor : findExecutors()) {
+        executor.destroy();
+    }
+
+    //4.调用engine的destroy()方法
+    if (engine != null) {
+        engine.destroy();
+    }
+
+    super.destroyInternal();
+}
 
 
     /**
@@ -597,8 +609,9 @@ public class StandardService extends LifecycleMBeanBase implements Service {
      */
     @Override
     public ClassLoader getParentClassLoader() {
-        if (parentClassLoader != null)
+        if (parentClassLoader != null) {
             return parentClassLoader;
+        }
         if (server != null) {
             return server.getParentClassLoader();
         }

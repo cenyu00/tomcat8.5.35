@@ -1694,8 +1694,7 @@ public class Digester extends DefaultHandler2 {
      *
      * @param pattern Element matching pattern
      * @param className Default Java class name to be created
-     * @param attributeName Attribute name that optionally overrides
-     *  the default Java class name to be created
+     * @param attributeName Attribute name that optionally overrides the default Java class name to be created
      * @see ObjectCreateRule
      */
     public void addObjectCreate(String pattern, String className, String attributeName) {

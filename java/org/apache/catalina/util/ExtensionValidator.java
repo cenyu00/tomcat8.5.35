@@ -44,6 +44,8 @@ import org.apache.tomcat.util.res.StringManager;
  *
  * @author Greg Murray
  * @author Justyna Horwat
+ *
+ * 用于验证扩展符合web程序
  */
 public final class ExtensionValidator {
 
@@ -166,8 +168,7 @@ public final class ExtensionValidator {
      * Checks to see if the given system JAR file contains a MANIFEST, and adds
      * it to the container's manifest resources.
      *
-     * @param jarFile The system JAR whose manifest to add
-     * @throws IOException Error reading JAR file
+     * 检查如果给出的jar文件包含MANIFEST，将被添加到container的manifest资源中
      */
     public static void addSystemResource(File jarFile) throws IOException {
         try (InputStream is = new FileInputStream(jarFile)) {

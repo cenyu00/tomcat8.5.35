@@ -22,70 +22,53 @@ import org.apache.catalina.connector.Connector;
 import org.apache.catalina.mapper.Mapper;
 
 /**
- * A <strong>Service</strong> is a group of one or more
- * <strong>Connectors</strong> that share a single <strong>Container</strong>
- * to process their incoming requests.  This arrangement allows, for example,
- * a non-SSL and SSL connector to share the same population of web apps.
- * <p>
- * A given JVM can contain any number of Service instances; however, they are
- * completely independent of each other and share only the basic JVM facilities
- * and classes on the system class path.
+ * 一个Service由一组：多个Connectors和一个Container组成的。举个例子，这种做法支持同时使用non-SSL
+ * 和SSL connector访问同一个web app。
  *
- * @author Craig R. McClanahan
+ * 一个给定的jvm能包含多个Service实例，然而，他们相互独立，仅仅依赖在同一个JVM上。
  */
 public interface Service extends Lifecycle {
 
     // ------------------------------------------------------------- Properties
 
     /**
-     * @return the <code>Engine</code> that handles requests for all
-     * <code>Connectors</code> associated with this Service.
+     * 返回Engine。
      */
     public Engine getContainer();
 
     /**
-     * Set the <code>Engine</code> that handles requests for all
-     * <code>Connectors</code> associated with this Service.
-     *
-     * @param engine The new Engine
+     * 设置Engine，专门处理Connectors请求的，并关联在该Service上的。
      */
     public void setContainer(Engine engine);
 
     /**
-     * @return the name of this Service.
+     * 返回Service的名字
      */
     public String getName();
 
     /**
-     * Set the name of this Service.
-     *
-     * @param name The new service name
+     * 设置Service的名字
      */
     public void setName(String name);
 
     /**
-     * @return the <code>Server</code> with which we are associated (if any).
+     * 返回关联的Server
      */
     public Server getServer();
 
     /**
-     * Set the <code>Server</code> with which we are associated (if any).
-     *
-     * @param server The server that owns this Service
+     * 设置关联的Server
      */
     public void setServer(Server server);
 
     /**
-     * @return the parent class loader for this component. If not set, return
-     * {@link #getServer()} {@link Server#getParentClassLoader()}. If no server
-     * has been set, return the system class loader.
+     * 返回这个Service的父类加载器，如果没有设置，返回关联的Server的父类加载器，
+     * 如果Server也没有设置，返回System Class Loader。
      */
     public ClassLoader getParentClassLoader();
 
     /**
-     * Set the parent class loader for this service.
-     *
-     * @param parent The new parent class loader
+     * 设置这个Service的父来加载器
      */
     public void setParentClassLoader(ClassLoader parent);
 
@@ -99,56 +82,42 @@ public interface Service extends Lifecycle {
     // --------------------------------------------------------- Public Methods
 
     /**
-     * Add a new Connector to the set of defined Connectors, and associate it
-     * with this Service's Container.
-     *
-     * @param connector The Connector to be added
+     * 增加Connector
      */
     public void addConnector(Connector connector);
 
     /**
-     * Find and return the set of Connectors associated with this Service.
-     *
-     * @return the set of associated Connectors
+     * 返回所有的Connectors
      */
     public Connector[] findConnectors();
 
     /**
-     * Remove the specified Connector from the set associated from this
-     * Service.  The removed Connector will also be disassociated from our
-     * Container.
-     *
-     * @param connector The Connector to be removed
+     * 移除指定的Connector
      */
     public void removeConnector(Connector connector);
 
     /**
-     * Adds a named executor to the service
-     * @param ex Executor
+     * 为该Service添加一个线程池
      */
     public void addExecutor(Executor ex);
 
     /**
-     * Retrieves all executors
-     * @return Executor[]
+     * 返回所有的线程池
      */
     public Executor[] findExecutors();
 
     /**
-     * Retrieves executor by name, null if not found
-     * @param name String
-     * @return Executor
+     * 返回指定的线程池
      */
     public Executor getExecutor(String name);
 
     /**
-     * Removes an executor from the service
-     * @param ex Executor
+     * 移除指定的线程池
      */
     public void removeExecutor(Executor ex);
 
     /**
-     * @return the mapper associated with this Service.
+     * 返回该Service关联的Mapper
      */
     Mapper getMapper();
 }

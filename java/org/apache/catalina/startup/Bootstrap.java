@@ -36,16 +36,9 @@ import org.apache.juli.logging.LogFactory;
 
 
 /**
- * Bootstrap loader for Catalina.  This application constructs a class loader
- * for use in loading the Catalina internal classes (by accumulating all of the
- * JAR files found in the "server" directory under "catalina.home"), and
- * starts the regular execution of the container.  The purpose of this
- * roundabout approach is to keep the Catalina internal classes (and any
- * other classes they depend on, such as an XML parser) out of the system
- * class path and therefore not visible to application level classes.
- *
- * @author Craig R. McClanahan
- * @author Remy Maucherat
+ * Catalina的bootstrap装载器
+ * 该应用构造了一个类加载器用于加载Catalina内部的class(主要${catalina.home}/server目录下),
+ * 以及启动container。
  */
 public final class Bootstrap {
 
@@ -53,15 +46,20 @@ public final class Bootstrap {
 
     /**
      * Daemon object used by main.
+     * main使用的守护对象
      */
     private static Bootstrap daemon = null;
 
+    //CatalinaBase的File对象
     private static final File catalinaBaseFile;
+    //CatalinaHome的File对象
     private static final File catalinaHomeFile;
+
 
     private static final Pattern PATH_PATTERN = Pattern.compile("(\".*?\")|(([^,])*)");
 
     static {
+        //该段主要设置Catalina.home路径和Catalina.base路径
         // Will always be non-null
         String userDir = System.getProperty("user.dir");
 
@@ -133,14 +131,19 @@ public final class Bootstrap {
     private Object catalinaDaemon = null;
 
 
+    //Tomcat最基本的类加载器，加载路径中的class可以被Tomcat容器本身以及各个Webapp访问；
     ClassLoader commonLoader = null;
+    //Tomcat容器私有的类加载器，加载路径中的class对于Webapp不可见；
     ClassLoader catalinaLoader = null;
+    //各个Webapp共享的类加载器，加载路径中的class对于所有Webapp可见，但是对于Tomcat容器不可见；
     ClassLoader sharedLoader = null;
 
 
     // -------------------------------------------------------- Private Methods
 
-
+    /**
+     * 写死功能去创建三个类加载器
+     */
     private void initClassLoaders() {
         try {
             commonLoader = createClassLoader("common", null);
@@ -158,15 +161,24 @@ public final class Bootstrap {
     }
 
 
-    private ClassLoader createClassLoader(String name, ClassLoader parent)
-        throws Exception {
-
+    /**
+     * 穿件一个类加载器的方法
+     * @param name 该类加载器的名称
+     * @param parent 该类加载器的父加载器
+     * @return 创建成功的类加载器
+     * @throws Exception
+     */
+    private ClassLoader createClassLoader(String name, ClassLoader parent) throws Exception {
+        //查找common和Catalina，shared的默认加载路径。
+        //common加载路径为：common.loader，默认执行${catalina.home}/lib下的包
+        //catalina加载路径为server.loader，默认为空
+        //shared加载路径为shared.loader，默认为空
         String value = CatalinaProperties.getProperty(name + ".loader");
         if ((value == null) || (value.equals(""))){
             return parent;
         }
 
-
+        //将上面步骤中的${catalina.home}变量进行替换成绝对路径
         value = replace(value);
 
         List<Repository> repositories = new ArrayList<>();
@@ -256,32 +268,35 @@ public final class Bootstrap {
      */
     public void init() throws Exception {
 
+        //1.初始化类加载器：commonLoader，catalinaLoader，sharedLoader
         initClassLoaders();
 
+        //2.设置当前线程的类加载器
         Thread.currentThread().setContextClassLoader(catalinaLoader);
 
+        //3.设置Java SecutityManager，目前看没啥用？
         SecurityClassLoad.securityClassLoad(catalinaLoader);
 
-        // Load our startup class and call its process() method
-        if (log.isDebugEnabled()) {
-            log.debug("Loading startup class");
-        }
+
+
+        //4.加载Catalina类，并为Catalina设置父类加载器
         Class<?> startupClass = catalinaLoader.loadClass("org.apache.catalina.startup.Catalina");
         Object startupInstance = startupClass.getConstructor().newInstance();
 
-        // Set the shared extensions class loader
-        if (log.isDebugEnabled()) {
-            log.debug("Setting startup class properties");
-        }
+
+        //通过反射调用catalina.setParentClassLoader(ClassLoader classloader)方法，
+        // 目的是设置Catalina的父类加载器为sharedLoader类加载器
         String methodName = "setParentClassLoader";
         Class<?> paramTypes[] = new Class[1];
         paramTypes[0] = Class.forName("java.lang.ClassLoader");
         Object paramValues[] = new Object[1];
         paramValues[0] = sharedLoader;
+        //反射找到对应的方法时，需要指明两个参数：1.方法名称，2.方法对应的参数类型的列表，数组形式
         Method method =
             startupInstance.getClass().getMethod(methodName, paramTypes);
         method.invoke(startupInstance, paramValues);
 
+        //5.把catalinaDaemon的值设置为org.apache.catalina.startup.Catalina
         catalinaDaemon = startupInstance;
 
     }
@@ -290,8 +305,8 @@ public final class Bootstrap {
     /**
      * Load daemon.
      */
-    private void load(String[] arguments)
-        throws Exception {
+    private void load(String[] arguments) throws Exception {
+        //主要是通过反射调用Catalina的load()方法
 
         // Call the load() method
         String methodName = "load";
@@ -350,8 +365,8 @@ public final class Bootstrap {
      * Start the Catalina daemon.
      * @throws Exception Fatal start error
      */
-    public void start()
-        throws Exception {
+    public void start() throws Exception {
+        //主要调用Catalina的start()方法
         if( catalinaDaemon==null ) {
             init();
         }
@@ -392,6 +407,7 @@ public final class Bootstrap {
    /**
      * Stop the standalone server.
      * @param arguments Command line arguments
+     * @throws Exception Fatal stop error
      * @throws Exception Fatal stop error
      */
     public void stopServer(String[] arguments)
@@ -456,17 +472,17 @@ public final class Bootstrap {
 
 
     /**
-     * Main method and entry point when starting Tomcat via the provided
-     * scripts.
-     *
-     * @param args Command line arguments to be processed
+     * main方法，整个程序的主入口。
      */
     public static void main(String args[]) {
 
         if (daemon == null) {
-            // Don't set daemon until init() has completed
+
+            //1.new过程中主要执行static中的设置Catalina.home和Catalina.base的值
             Bootstrap bootstrap = new Bootstrap();
             try {
+                //2.主要完成类加载器的初始化，包括common，catalina，share三个类加载器，
+                // 并设置catalina的父类加载器。
                 bootstrap.init();
             } catch (Throwable t) {
                 handleThrowable(t);
@@ -487,7 +503,9 @@ public final class Bootstrap {
                 command = args[args.length - 1];
             }
 
+            //3.判断shell传入的值，执行对应的动作
             if (command.equals("startd")) {
+                //执行start方法的内容，主要为执行Catalina的load()和start()方法
                 args[args.length - 1] = "start";
                 daemon.load(args);
                 daemon.start();
@@ -513,11 +531,6 @@ public final class Bootstrap {
                 log.warn("Bootstrap: command \"" + command + "\" does not exist.");
             }
         } catch (Throwable t) {
-            // Unwrap the Exception for clearer error reporting
-            if (t instanceof InvocationTargetException &&
-                    t.getCause() != null) {
-                t = t.getCause();
-            }
             handleThrowable(t);
             t.printStackTrace();
             System.exit(1);

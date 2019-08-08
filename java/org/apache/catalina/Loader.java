@@ -60,6 +60,7 @@ public interface Loader {
 
     /**
      * @return the Java class loader to be used by this Container.
+     * 返回Container使用的java类加载器实例
      */
     public ClassLoader getClassLoader();
 
@@ -122,6 +123,7 @@ public interface Loader {
      *
      * @return <code>true</code> when the repository has been modified,
      *         <code>false</code> otherwise
+     * 如果仓库被修改则返回true
      */
     public boolean modified();
 

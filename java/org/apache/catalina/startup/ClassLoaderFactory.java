@@ -32,21 +32,11 @@ import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 
 /**
- * <p>Utility class for building class loaders for Catalina.  The factory
- * method requires the following parameters in order to build a new class
- * loader (with suitable defaults in all cases):</p>
- * <ul>
- * <li>A set of directories containing unpacked classes (and resources)
- *     that should be included in the class loader's
- *     repositories.</li>
- * <li>A set of directories containing classes and resources in JAR files.
- *     Each readable JAR file discovered in these directories will be
- *     added to the class loader's repositories.</li>
- * <li><code>ClassLoader</code> instance that should become the parent of
- *     the new class loader.</li>
- * </ul>
+ * 用于Catalina创建classLoader的工具类。该工厂方法需要下面两个参数来创建一个新的classLoader
+ *  1.一个路径的集合，路径包含未解压的class文件。
+ *  2.一个路径的集合，路径包含jar包。
+ *  3.父类加载器
  *
- * @author Craig R. McClanahan
  */
 public final class ClassLoaderFactory {
 
@@ -136,35 +126,26 @@ public final class ClassLoaderFactory {
 
 
     /**
-     * Create and return a new class loader, based on the configuration
-     * defaults and the specified directory paths:
-     *
-     * @param repositories List of class directories, jar files, jar directories
-     *                     or URLS that should be added to the repositories of
-     *                     the class loader.
-     * @param parent Parent class loader for the new class loader, or
-     *  <code>null</code> for the system class loader.
-     * @return the new class loader
-     *
-     * @exception Exception if an error occurs constructing the class loader
+     * 基于默认的配置和指定的路径来创建一个新的class loader
+     *  参数1：一个集合，可以包括：class路径，jar文件，jar路径和URLS
+     *  参数2：父加载器，如果为null，将使用SystemClassLoader加载器
      */
     public static ClassLoader createClassLoader(List<Repository> repositories,
-                                                final ClassLoader parent)
-        throws Exception {
+                                                final ClassLoader parent) throws Exception {
 
         if (log.isDebugEnabled())
             log.debug("Creating new class loader");
 
-        // Construct the "class path" for this class loader
+        //所有的repository都被处理成URL
         Set<URL> set = new LinkedHashSet<>();
 
         if (repositories != null) {
             for (Repository repository : repositories)  {
+                //如果地址是URL类型的处理逻辑
                 if (repository.getType() == RepositoryType.URL) {
                     URL url = buildClassLoaderUrl(repository.getLocation());
-                    if (log.isDebugEnabled())
-                        log.debug("  Including URL " + url);
                     set.add(url);
+                //如果地址是DIR类型的处理逻辑
                 } else if (repository.getType() == RepositoryType.DIR) {
                     File directory = new File(repository.getLocation());
                     directory = directory.getCanonicalFile();
@@ -172,9 +153,8 @@ public final class ClassLoaderFactory {
                         continue;
                     }
                     URL url = buildClassLoaderUrl(directory);
-                    if (log.isDebugEnabled())
-                        log.debug("  Including directory " + url);
                     set.add(url);
+                //如果地址是Jar包
                 } else if (repository.getType() == RepositoryType.JAR) {
                     File file=new File(repository.getLocation());
                     file = file.getCanonicalFile();
@@ -182,18 +162,14 @@ public final class ClassLoaderFactory {
                         continue;
                     }
                     URL url = buildClassLoaderUrl(file);
-                    if (log.isDebugEnabled())
-                        log.debug("  Including jar file " + url);
                     set.add(url);
+                //如果地址是GLOB类型
                 } else if (repository.getType() == RepositoryType.GLOB) {
                     File directory=new File(repository.getLocation());
                     directory = directory.getCanonicalFile();
                     if (!validateFile(directory, RepositoryType.GLOB)) {
                         continue;
                     }
-                    if (log.isDebugEnabled())
-                        log.debug("  Including directory glob "
-                            + directory.getAbsolutePath());
                     String filenames[] = directory.list();
                     if (filenames == null) {
                         continue;
@@ -207,9 +183,6 @@ public final class ClassLoaderFactory {
                         if (!validateFile(file, RepositoryType.JAR)) {
                             continue;
                         }
-                        if (log.isDebugEnabled())
-                            log.debug("    Including glob jar file "
-                                + file.getAbsolutePath());
                         URL url = buildClassLoaderUrl(file);
                         set.add(url);
                     }
@@ -305,6 +278,7 @@ public final class ClassLoaderFactory {
         URL
     }
 
+    //classLoader需要加载的路径，抽象成了类
     public static class Repository {
         private final String location;
         private final RepositoryType type;

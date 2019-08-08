@@ -24,151 +24,119 @@ import org.apache.catalina.deploy.NamingResourcesImpl;
 import org.apache.catalina.startup.Catalina;
 
 /**
- * A <code>Server</code> element represents the entire Catalina
- * servlet container.  Its attributes represent the characteristics of
- * the servlet container as a whole.  A <code>Server</code> may contain
- * one or more <code>Services</code>, and the top level set of naming
- * resources.
- * <p>
- * Normally, an implementation of this interface will also implement
- * <code>Lifecycle</code>, such that when the <code>start()</code> and
- * <code>stop()</code> methods are called, all of the defined
- * <code>Services</code> are also started or stopped.
- * <p>
- * In between, the implementation must open a server socket on the port number
- * specified by the <code>port</code> property.  When a connection is accepted,
- * the first line is read and compared with the specified shutdown command.
- * If the command matches, shutdown of the server is initiated.
- * <p>
- * <strong>NOTE</strong> - The concrete implementation of this class should
- * register the (singleton) instance with the <code>ServerFactory</code>
- * class in its constructor(s).
+ * 一个Server代表着Catalina Servlet容器的全部，它的属性代表着servlet容器的全部规格参数，
+ * 一个Server可能包含一个或者多个的Services，以及顶级的命名资源。
  *
- * @author Craig R. McClanahan
+ * 一般来说，实现该接口的实现类也需要实现Lifecycle接口，例如当start()或者stop()方法被调用时，
+ * 所有包含在server中的services也会被执行start和stop
+ *
+ * 另外的，该接口的实现类也需要使用port端口属性来打开一个socket连接，当一个连接被接收，
+ * 第一行数据将被读取并与特定的shutdown命令进行比较，如果匹配，server将被停止。
+ *
+ * 注意：实现类需要注册单例的实例，通过ServerFactory类的构造函数。
  */
 public interface Server extends Lifecycle {
 
     // ------------------------------------------------------------- Properties
 
     /**
-     * @return the global naming resources.
+     * 返回全局naming resource
      */
     public NamingResourcesImpl getGlobalNamingResources();
 
 
     /**
-     * Set the global naming resources.
-     *
-     * @param globalNamingResources The new global naming resources
+     * 设置全局naming resource
      */
     public void setGlobalNamingResources
         (NamingResourcesImpl globalNamingResources);
 
 
     /**
-     * @return the global naming resources context.
+     * 返回全局naming resouces的context
      */
     public javax.naming.Context getGlobalNamingContext();
 
 
     /**
-     * @return the port number we listen to for shutdown commands.
+     * 返回shutdown监听的端口号
      */
     public int getPort();
 
 
     /**
-     * Set the port number we listen to for shutdown commands.
-     *
-     * @param port The new port number
+     * 设置shutdown监听的端口号
      */
     public void setPort(int port);
 
 
     /**
-     * @return the address on which we listen to for shutdown commands.
+     * 返回shutdown监听的地址
      */
     public String getAddress();
 
 
     /**
-     * Set the address on which we listen to for shutdown commands.
-     *
-     * @param address The new address
+     * 设置shutdown监听的地址
      */
     public void setAddress(String address);
 
 
     /**
-     * @return the shutdown command string we are waiting for.
+     * 返回执行shutdown命令的字符串
      */
     public String getShutdown();
 
 
     /**
-     * Set the shutdown command we are waiting for.
-     *
-     * @param shutdown The new shutdown command
+     * 设置Server等到那一条命令时会执行shutdown
      */
     public void setShutdown(String shutdown);
 
 
     /**
-     * @return the parent class loader for this component. If not set, return
-     * {@link #getCatalina()} {@link Catalina#getParentClassLoader()}. If
-     * catalina has not been set, return the system class loader.
+     * 返回Server的父类加载器
      */
     public ClassLoader getParentClassLoader();
 
 
     /**
-     * Set the parent class loader for this server.
-     *
-     * @param parent The new parent class loader
+     * 为server设置一个父类加载器
      */
     public void setParentClassLoader(ClassLoader parent);
 
 
     /**
-     * @return the outer Catalina startup/shutdown component if present.
+     * 返回外部的startup/shutdown组件
      */
     public Catalina getCatalina();
 
     /**
      * Set the outer Catalina startup/shutdown component if present.
      *
-     * @param catalina the outer Catalina component
+     * 如果存在外部的startup/shutdown组件，可以在这里设置
      */
     public void setCatalina(Catalina catalina);
 
 
     /**
-     * @return the configured base (instance) directory. Note that home and base
-     * may be the same (and are by default). If this is not set the value
-     * returned by {@link #getCatalinaHome()} will be used.
+     * 返回CatalinaBase的值
      */
     public File getCatalinaBase();
 
     /**
-     * Set the configured base (instance) directory. Note that home and base
-     * may be the same (and are by default).
-     *
-     * @param catalinaBase the configured base directory
+     * 设置CatalinaBase的值
      */
     public void setCatalinaBase(File catalinaBase);
 
 
     /**
-     * @return the configured home (binary) directory. Note that home and base
-     * may be the same (and are by default).
+     * 返回CatalinaHome的值
      */
     public File getCatalinaHome();
 
     /**
-     * Set the configured home (binary) directory. Note that home and base
-     * may be the same (and are by default).
-     *
-     * @param catalinaHome the configured home directory
+     * 设置CatalinaHome值，CatalinaHome可能会和CatalinaBase的值一样（默认是一样的）
      */
     public void setCatalinaHome(File catalinaHome);
 
@@ -177,46 +145,37 @@ public interface Server extends Lifecycle {
 
 
     /**
-     * Add a new Service to the set of defined Services.
-     *
-     * @param service The Service to be added
+     * 增加service
      */
     public void addService(Service service);
 
 
     /**
-     * Wait until a proper shutdown command is received, then return.
+     * 等待直到收到争取的shutdown命令，然后返回
      */
     public void await();
 
 
     /**
-     * Find the specified Service
-     *
-     * @param name Name of the Service to be returned
-     * @return the specified Service, or <code>null</code> if none exists.
+     * 查找指定的Service
      */
     public Service findService(String name);
 
 
     /**
-     * @return the set of Services defined within this Server.
+     * 返回所有的Service数组
      */
     public Service[] findServices();
 
 
     /**
-     * Remove the specified Service from the set associated from this
-     * Server.
-     *
-     * @param service The Service to be removed
+     * 移除一个Service
      */
     public void removeService(Service service);
 
 
     /**
-     * @return the token necessary for operations on the associated JNDI naming
-     * context.
+     * 获取操作关联JDNI的naming context的必要的token
      */
     public Object getNamingToken();
 }

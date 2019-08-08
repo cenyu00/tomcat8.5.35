@@ -996,7 +996,6 @@ public class NamingResourcesImpl extends LifecycleMBeanBase
         setState(LifecycleState.STARTING);
     }
 
-
     @Override
     protected void stopInternal() throws LifecycleException {
         cleanUp();

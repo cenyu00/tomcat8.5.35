@@ -17,11 +17,7 @@
 package org.apache.catalina.startup;
 
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.lang.reflect.Constructor;
 import java.net.ConnectException;
 import java.net.Socket;
@@ -48,26 +44,20 @@ import org.apache.tomcat.util.log.SystemLogHandler;
 import org.apache.tomcat.util.res.StringManager;
 import org.xml.sax.Attributes;
 import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
 
 /**
- * Startup/Shutdown shell program for Catalina.  The following command line
- * options are recognized:
- * <ul>
- * <li><b>-config {pathname}</b> - Set the pathname of the configuration file
- *     to be processed.  If a relative path is specified, it will be
- *     interpreted as relative to the directory pathname specified by the
- *     "catalina.base" system property.   [conf/server.xml]</li>
- * <li><b>-help</b>      - Display usage information.</li>
- * <li><b>-nonaming</b>  - Disable naming support.</li>
- * <li><b>configtest</b> - Try to test the config</li>
- * <li><b>start</b>      - Start an instance of Catalina.</li>
- * <li><b>stop</b>       - Stop the currently running instance of Catalina.</li>
- * </ul>
  *
- * @author Craig R. McClanahan
- * @author Remy Maucherat
+ * shell程序操作的java对象，支持命令行下面的参数。
+ * -config {pathname} 设置配置文件server.xml的路径，
+ * -help  展示使用方法
+ * -nonaming 禁用naming
+ * configtest  尝试测试配置文件
+ * start 启动一个Catalina的实例
+ * stop 停止当前正在运行的catalina实例
+ *
  */
 public class Catalina {
 
@@ -82,49 +72,49 @@ public class Catalina {
     // ----------------------------------------------------- Instance Variables
 
     /**
-     * Use await.
+     * 用于await的flag
      */
     protected boolean await = false;
 
     /**
-     * Pathname to the server configuration file.
+     * Server配置的文件路径
      */
     protected String configFile = "conf/server.xml";
 
-    // XXX Should be moved to embedded
     /**
      * The shared extensions class loader for this server.
+     * 此server的shared 类加载器
      */
     protected ClassLoader parentClassLoader =
         Catalina.class.getClassLoader();
 
 
     /**
-     * The server component we are starting or stopping.
+     * Server组件
      */
     protected Server server = null;
 
 
     /**
-     * Use shutdown hook flag.
+     * 使用shutdown钩子的flag
      */
     protected boolean useShutdownHook = true;
 
 
     /**
-     * Shutdown hook.
+     * Shutdown钩子实例
      */
     protected Thread shutdownHook = null;
 
 
     /**
-     * Is naming enabled ?
+     * 默认需要开启Naming
      */
     protected boolean useNaming = true;
 
 
     /**
-     * Prevent duplicate loads.
+     * 预防重复加载的标记字段
      */
     protected boolean loaded = false;
 
@@ -132,6 +122,7 @@ public class Catalina {
     // ----------------------------------------------------------- Constructors
 
     public Catalina() {
+        //设置包的安全保护
         setSecurityProtection();
         ExceptionUtils.preload();
     }
@@ -256,8 +247,7 @@ public class Catalina {
 
 
     /**
-     * Return a File object representing our configuration file.
-     * @return the main configuration file
+     * 返回server.xml文件的路径
      */
     protected File configFile() {
 
@@ -271,15 +261,20 @@ public class Catalina {
 
 
     /**
-     * Create and configure the Digester we will be using for startup.
-     * @return the main digester to parse server.xml
+     * 创建和配置Digester，返回用于解析server.xml的digester实例
      */
     protected Digester createStartDigester() {
         long t1=System.currentTimeMillis();
-        // Initialize the digester
+        // 创建一个digester实例
         Digester digester = new Digester();
+        //是否对xml文档进行类似XSD等类型的校验，默认为fasle。
         digester.setValidating(false);
+        //是否进行节点设置规则校验，如果xml中相应节点没有设置解析规则会在控制台显示提示信息。
         digester.setRulesValidation(true);
+
+        //将XML节点中的className作为假属性，不必调用默认的setter方法
+        //(一般的节点属性在解析时会以属性作为入参调用该节点相应对象的setter方法，而className属性的作用
+        // 提示解析器使用该属性的值作来实例化对象)
         Map<Class<?>, List<String>> fakeAttributes = new HashMap<>();
         List<String> objectAttrs = new ArrayList<>();
         objectAttrs.add("className");
@@ -289,9 +284,10 @@ public class Catalina {
         contextAttrs.add("source");
         fakeAttributes.put(StandardContext.class, contextAttrs);
         digester.setFakeAttributes(fakeAttributes);
+
+        //使用当前线程的上下文类加载器，主要加载FactoryCreateRule和ObjectCreateRule
         digester.setUseContextClassLoader(true);
 
-        // Configure the actions we will be using
         digester.addObjectCreate("Server",
                                  "org.apache.catalina.core.StandardServer",
                                  "className");
@@ -331,19 +327,17 @@ public class Catalina {
                             "addLifecycleListener",
                             "org.apache.catalina.LifecycleListener");
 
-        //Executor
         digester.addObjectCreate("Server/Service/Executor",
                          "org.apache.catalina.core.StandardThreadExecutor",
                          "className");
         digester.addSetProperties("Server/Service/Executor");
-
         digester.addSetNext("Server/Service/Executor",
                             "addExecutor",
                             "org.apache.catalina.Executor");
 
-
         digester.addRule("Server/Service/Connector",
                          new ConnectorCreateRule());
+
         digester.addRule("Server/Service/Connector",
                          new SetAllPropertiesRule(new String[]{"executor", "sslImplementationName"}));
         digester.addSetNext("Server/Service/Connector",
@@ -466,198 +460,109 @@ public class Catalina {
         stopServer(null);
     }
 
-    public void stopServer(String[] arguments) {
+public void stopServer(String[] arguments) {
 
-        if (arguments != null) {
-            arguments(arguments);
-        }
-
-        Server s = getServer();
-        if (s == null) {
-            // Create and execute our Digester
-            Digester digester = createStopDigester();
-            File file = configFile();
-            try (FileInputStream fis = new FileInputStream(file)) {
-                InputSource is =
-                    new InputSource(file.toURI().toURL().toString());
-                is.setByteStream(fis);
-                digester.push(this);
-                digester.parse(is);
-            } catch (Exception e) {
-                log.error("Catalina.stop: ", e);
-                System.exit(1);
-            }
-        } else {
-            // Server object already present. Must be running as a service
-            try {
-                s.stop();
-                s.destroy();
-            } catch (LifecycleException e) {
-                log.error("Catalina.stop: ", e);
-            }
-            return;
-        }
-
-        // Stop the existing server
-        s = getServer();
-        if (s.getPort()>0) {
-            try (Socket socket = new Socket(s.getAddress(), s.getPort());
-                    OutputStream stream = socket.getOutputStream()) {
-                String shutdown = s.getShutdown();
-                for (int i = 0; i < shutdown.length(); i++) {
-                    stream.write(shutdown.charAt(i));
-                }
-                stream.flush();
-            } catch (ConnectException ce) {
-                log.error(sm.getString("catalina.stopServer.connectException",
-                                       s.getAddress(),
-                                       String.valueOf(s.getPort())));
-                log.error("Catalina.stop: ", ce);
-                System.exit(1);
-            } catch (IOException e) {
-                log.error("Catalina.stop: ", e);
-                System.exit(1);
-            }
-        } else {
-            log.error(sm.getString("catalina.stopServer"));
-            System.exit(1);
-        }
+    //1.参数设置
+    if (arguments != null) {
+        arguments(arguments);
     }
 
-
-    /**
-     * Start a new server instance.
-     */
-    public void load() {
-
-        if (loaded) {
-            return;
+    Server s = getServer();
+    //2.如果Server存在，就调用Server的stop和destroy方法进行关闭，
+    if (s == null) {
+        // Create and execute our Digester
+        Digester digester = createStopDigester();
+        File file = configFile();
+        try (FileInputStream fis = new FileInputStream(file)) {
+            InputSource is =
+                new InputSource(file.toURI().toURL().toString());
+            is.setByteStream(fis);
+            digester.push(this);
+            digester.parse(is);
+        } catch (Exception e) {
+            log.error("Catalina.stop: ", e);
+            System.exit(1);
         }
-        loaded = true;
+    } else {
+        // Server object already present. Must be running as a service
+        try {
+            s.stop();
+            s.destroy();
+        } catch (LifecycleException e) {
+            log.error("Catalina.stop: ", e);
+        }
+        return;
+    }
 
-        long t1 = System.nanoTime();
+    // 如果Server不存在，就重新解析server.xml文件构造server，然后通过socket发送shutdown命令关闭
+    s = getServer();
+    if (s.getPort()>0) {
+        try (Socket socket = new Socket(s.getAddress(), s.getPort());
+                OutputStream stream = socket.getOutputStream()) {
+            String shutdown = s.getShutdown();
+            for (int i = 0; i < shutdown.length(); i++) {
+                stream.write(shutdown.charAt(i));
+            }
+            stream.flush();
+        } catch (Exception ce) {
+            ce.printStackTrace();
+        }
 
+    } else {
+        log.error(sm.getString("catalina.stopServer"));
+        System.exit(1);
+    }
+}
+
+
+/**
+ * 准备好环境，解析好server.xml文件生成好对象。server对象也准备好，然后调用server的init方法
+ */
+public void load() {
+    try {
+
+        //1.检查java.io.tmpdir是有有效
         initDirs();
 
-        // Before digester - it may be needed
+        //2.设置catalina.useNaming的系统参数
         initNaming();
 
-        // Create and execute our Digester
+        //3.用digester解析server.xml文件，把配置文件中的配置解析成java对象
+        //3.1.准备好用来解析server.xml文件需要用的digester。
         Digester digester = createStartDigester();
+        //3.2.server.xml文件作为一个输入流传入
+        File file = configFile();
+        InputStream inputStream = new FileInputStream(file);
+        //3.3.使用inputStream构造一个sax的inputSource
+        InputSource inputSource = new InputSource(file.toURI().toURL().toString());
+        inputSource.setByteStream(inputStream);
+        //3.4.把当前类压入到digester的栈顶，用来作为digester解析出来的对象的一种引用
+        digester.push(this);
+        //3.5.调用digester的parse()方法进行解析。
+        digester.parse(inputSource);
 
-        InputSource inputSource = null;
-        InputStream inputStream = null;
-        File file = null;
-        try {
-            try {
-                file = configFile();
-                inputStream = new FileInputStream(file);
-                inputSource = new InputSource(file.toURI().toURL().toString());
-            } catch (Exception e) {
-                if (log.isDebugEnabled()) {
-                    log.debug(sm.getString("catalina.configFail", file), e);
-                }
-            }
-            if (inputStream == null) {
-                try {
-                    inputStream = getClass().getClassLoader()
-                        .getResourceAsStream(getConfigFile());
-                    inputSource = new InputSource
-                        (getClass().getClassLoader()
-                         .getResource(getConfigFile()).toString());
-                } catch (Exception e) {
-                    if (log.isDebugEnabled()) {
-                        log.debug(sm.getString("catalina.configFail",
-                                getConfigFile()), e);
-                    }
-                }
-            }
-
-            // This should be included in catalina.jar
-            // Alternative: don't bother with xml, just create it manually.
-            if (inputStream == null) {
-                try {
-                    inputStream = getClass().getClassLoader()
-                            .getResourceAsStream("server-embed.xml");
-                    inputSource = new InputSource
-                    (getClass().getClassLoader()
-                            .getResource("server-embed.xml").toString());
-                } catch (Exception e) {
-                    if (log.isDebugEnabled()) {
-                        log.debug(sm.getString("catalina.configFail",
-                                "server-embed.xml"), e);
-                    }
-                }
-            }
-
-
-            if (inputStream == null || inputSource == null) {
-                if  (file == null) {
-                    log.warn(sm.getString("catalina.configFail",
-                            getConfigFile() + "] or [server-embed.xml]"));
-                } else {
-                    log.warn(sm.getString("catalina.configFail",
-                            file.getAbsolutePath()));
-                    if (file.exists() && !file.canRead()) {
-                        log.warn("Permissions incorrect, read permission is not allowed on the file.");
-                    }
-                }
-                return;
-            }
-
-            try {
-                inputSource.setByteStream(inputStream);
-                digester.push(this);
-                digester.parse(inputSource);
-            } catch (SAXParseException spe) {
-                log.warn("Catalina.start using " + getConfigFile() + ": " +
-                        spe.getMessage());
-                return;
-            } catch (Exception e) {
-                log.warn("Catalina.start using " + getConfigFile() + ": " , e);
-                return;
-            }
-        } finally {
-            if (inputStream != null) {
-                try {
-                    inputStream.close();
-                } catch (IOException e) {
-                    // Ignore
-                }
-            }
-        }
-
+        //4.为子组件Server设置一些值
         getServer().setCatalina(this);
         getServer().setCatalinaHome(Bootstrap.getCatalinaHomeFile());
         getServer().setCatalinaBase(Bootstrap.getCatalinaBaseFile());
 
-        // Stream redirection
-        initStreams();
+        //5.执行server的init方法，左右start方法的准备方法
+        getServer().init();
 
-        // Start the new server
-        try {
-            getServer().init();
-        } catch (LifecycleException e) {
-            if (Boolean.getBoolean("org.apache.catalina.startup.EXIT_ON_INIT_FAILURE")) {
-                throw new java.lang.Error(e);
-            } else {
-                log.error("Catalina.start", e);
-            }
-        }
-
-        long t2 = System.nanoTime();
-        if(log.isInfoEnabled()) {
-            log.info("Initialization processed in " + ((t2 - t1) / 1000000) + " ms");
-        }
+    }catch (Exception e){
+        e.printStackTrace();
     }
+
+}
 
 
     /*
-     * Load using arguments
+     * 使用参数进行load
      */
     public void load(String args[]) {
 
         try {
+            //根据传入的参数设置Catalina的一些属性的值
             if (arguments(args)) {
                 load();
             }
@@ -670,63 +575,41 @@ public class Catalina {
     /**
      * Start a new server instance.
      */
-    public void start() {
+public void start() {
 
-        if (getServer() == null) {
-            load();
-        }
-
-        if (getServer() == null) {
-            log.fatal("Cannot start server. Server instance is not configured.");
-            return;
-        }
-
-        long t1 = System.nanoTime();
-
-        // Start the new server
+    //1.执行Server的start()方法，如果执行失败，就调用Server的destroy()方法
+    try {
+        //执行server的start方法
+        getServer().start();
+    } catch (LifecycleException e) {
         try {
-            getServer().start();
-        } catch (LifecycleException e) {
-            log.fatal(sm.getString("catalina.serverStartFail"), e);
-            try {
-                getServer().destroy();
-            } catch (LifecycleException e1) {
-                log.debug("destroy() failed for failed Server ", e1);
-            }
-            return;
+            //如果start失败，就调用server的destroy方法
+            getServer().destroy();
+        } catch (LifecycleException e1) {
+            log.debug("destroy() failed for failed Server ", e1);
         }
-
-        long t2 = System.nanoTime();
-        if(log.isInfoEnabled()) {
-            log.info("Server startup in " + ((t2 - t1) / 1000000) + " ms");
-        }
-
-        // Register shutdown hook
-        if (useShutdownHook) {
-            if (shutdownHook == null) {
-                shutdownHook = new CatalinaShutdownHook();
-            }
-            Runtime.getRuntime().addShutdownHook(shutdownHook);
-
-            // If JULI is being used, disable JULI's shutdown hook since
-            // shutdown hooks run in parallel and log messages may be lost
-            // if JULI's hook completes before the CatalinaShutdownHook()
-            LogManager logManager = LogManager.getLogManager();
-            if (logManager instanceof ClassLoaderLogManager) {
-                ((ClassLoaderLogManager) logManager).setUseShutdownHook(
-                        false);
-            }
-        }
-
-        if (await) {
-            await();
-            stop();
-        }
+        return;
     }
+
+    //2.注册一个shutdown的钩子
+    if (useShutdownHook) {
+        if (shutdownHook == null) {
+            shutdownHook = new CatalinaShutdownHook();
+        }
+        Runtime.getRuntime().addShutdownHook(shutdownHook);
+
+    }
+
+    //3.等待处理如何停止的问题
+    if (await) {
+        await();
+        stop();
+    }
+}
 
 
     /**
-     * Stop an existing server instance.
+     * 停止一个Server实例
      */
     public void stop() {
 
@@ -853,27 +736,28 @@ public class Catalina {
     /**
      * Shutdown hook which will perform a clean shutdown of Catalina if needed.
      */
-    protected class CatalinaShutdownHook extends Thread {
+protected class CatalinaShutdownHook extends Thread {
 
-        @Override
-        public void run() {
-            try {
-                if (getServer() != null) {
-                    Catalina.this.stop();
-                }
-            } catch (Throwable ex) {
-                ExceptionUtils.handleThrowable(ex);
-                log.error(sm.getString("catalina.shutdownHookFail"), ex);
-            } finally {
-                // If JULI is used, shut JULI down *after* the server shuts down
-                // so log messages aren't lost
-                LogManager logManager = LogManager.getLogManager();
-                if (logManager instanceof ClassLoaderLogManager) {
-                    ((ClassLoaderLogManager) logManager).shutdown();
-                }
+    @Override
+    public void run() {
+        try {
+            if (getServer() != null) {
+                //1.调用Catalina的stop()方法
+                Catalina.this.stop();
+            }
+        } catch (Throwable ex) {
+            ExceptionUtils.handleThrowable(ex);
+            log.error(sm.getString("catalina.shutdownHookFail"), ex);
+        } finally {
+            // If JULI is used, shut JULI down *after* the server shuts down
+            // so log messages aren't lost
+            LogManager logManager = LogManager.getLogManager();
+            if (logManager instanceof ClassLoaderLogManager) {
+                ((ClassLoaderLogManager) logManager).shutdown();
             }
         }
     }
+}
 
 
     private static final Log log = LogFactory.getLog(Catalina.class);

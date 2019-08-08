@@ -91,56 +91,60 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
 
 
     /**
-     * Global naming resources context.
+     * JNDI的context
      */
     private javax.naming.Context globalNamingContext = null;
 
 
     /**
-     * Global naming resources.
+     * JNDI的resource
      */
     private NamingResourcesImpl globalNamingResources = null;
 
 
     /**
-     * The naming context listener for this web application.
+     * 作用与web application的JDNI监听器
      */
     private final NamingContextListener namingContextListener;
 
 
     /**
-     * The port number on which we wait for shutdown commands.
+     * 用于等待shutdown命令的端口号
      */
     private int port = 8005;
 
     /**
-     * The address on which we wait for shutdown commands.
+     * 用于等待shutdown命令的地址
      */
     private String address = "localhost";
 
 
     /**
-     * A random number generator that is <strong>only</strong> used if
-     * the shutdown command string is longer than 1024 characters.
+     * 随机数生成器，当shutdown命令行大于1024个字符时，将随机产生
      */
     private Random random = null;
 
 
     /**
-     * The set of Services associated with this Server.
+     * Server下的service集合
      */
     private Service services[] = new Service[0];
+
+
+    /**
+     * Service用到的锁
+     */
     private final Object servicesLock = new Object();
 
 
     /**
-     * The shutdown command string we are looking for.
+     * shutdown服务在等待的命令
      */
     private String shutdown = "SHUTDOWN";
 
 
     /**
-     * The string manager for this package.
+     * 这个包的string管理器
      */
     private static final StringManager sm =
         StringManager.getManager(Constants.Package);
@@ -151,24 +155,31 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
      */
     final PropertyChangeSupport support = new PropertyChangeSupport(this);
 
+    /**
+     * stopAwait的标记位
+     */
     private volatile boolean stopAwait = false;
 
+    //Catalina对象
     private Catalina catalina = null;
 
+    //父类加载器
     private ClassLoader parentClassLoader = null;
 
     /**
-     * Thread that currently is inside our await() method.
+     * 执行await()的线程
      */
     private volatile Thread awaitThread = null;
 
     /**
-     * Server socket that is used to wait for the shutdown command.
+     * 用于等待shutdown的socket服务器
      */
     private volatile ServerSocket awaitSocket = null;
 
+    //catalinaHome的地址
     private File catalinaHome = null;
 
+    //catalinaBase的地址
     private File catalinaBase = null;
 
     private final Object namingToken = new Object();
@@ -408,12 +419,12 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
     }
 
     /**
-     * Wait until a proper shutdown command is received, then return.
-     * This keeps the main thread alive - the thread pool listening for http
-     * connections is daemon threads.
+     * 等待shutdown命令发送发送过来才会返回，否则一直阻塞。
+     * 主线程在等待，其他的监听和http连接等都是daemon线程。
      */
     @Override
     public void await() {
+        //1.处理port等于-1或-2的情况。
         // Negative values - don't wait on port - tomcat is embedded or we just don't like ports
         if( port == -2 ) {
             // undocumented yet - for embedding apps that are around, alive.
@@ -435,7 +446,7 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
             return;
         }
 
-        // Set up a server socket to wait on
+        //2.设置一个socket的服务端在指定端口上进行等待
         try {
             awaitSocket = new ServerSocket(port, 1,
                     InetAddress.getByName(address));
@@ -447,9 +458,10 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
         }
 
         try {
+            //当前线程设置为等待线程
             awaitThread = Thread.currentThread();
 
-            // Loop waiting for a connection and a valid command
+            //3.轮询等待，直到shutdown命令行进来，如果跟设置的匹配就结束循环
             while (!stopAwait) {
                 ServerSocket serverSocket = awaitSocket;
                 if (serverSocket == null) {
@@ -782,12 +794,15 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
     @Override
     protected void startInternal() throws LifecycleException {
 
+        //1.发送生命周期时间
         fireLifecycleEvent(CONFIGURE_START_EVENT, null);
+        //更改生命周期的状态为starting
         setState(LifecycleState.STARTING);
 
+        //2.启动JDNI
         globalNamingResources.start();
 
-        // Start our defined Services
+        //3.调用Service的start()方法，启动Service
         synchronized (servicesLock) {
             for (int i = 0; i < services.length; i++) {
                 services[i].start();
@@ -806,16 +821,19 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
     @Override
     protected void stopInternal() throws LifecycleException {
 
+        //1.设置生命周期的状态，
         setState(LifecycleState.STOPPING);
         fireLifecycleEvent(CONFIGURE_STOP_EVENT, null);
 
-        // Stop our defined Services
+        // 2.调用所有的Service的stop方法
         for (int i = 0; i < services.length; i++) {
             services[i].stop();
         }
 
+        //3.停止JDNI
         globalNamingResources.stop();
 
+        //4.清理等待线程和socket
         stopAwait();
     }
 
@@ -826,24 +844,29 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
     @Override
     protected void initInternal() throws LifecycleException {
 
+        //1.先调用父类的init方法
         super.initInternal();
 
         // Register global String cache
         // Note although the cache is global, if there are multiple Servers
         // present in the JVM (may happen when embedding) then the same cache
         // will be registered under multiple names
+        //2.注册全局的String cache，作用是什么现在还不清楚
         onameStringCache = register(new StringCache(), "type=StringCache");
 
         // Register the MBeanFactory
+        //3.注册JMX的MBean
         MBeanFactory factory = new MBeanFactory();
         factory.setContainer(this);
         onameMBeanFactory = register(factory, "type=MBeanFactory");
 
         // Register the naming resources
+        //4.调用JNDI的init方法
         globalNamingResources.init();
 
-        // Populate the extension validator with JARs from common and shared
-        // class loaders
+        // Populate the extension validator with JARs from common and shared class loaders
+        //5.对common和shared目录下的jar包进行校验，如果给出的jar文件包含MANIFEST，
+        // 将被添加到container的manifest资源中
         if (getCatalina() != null) {
             ClassLoader cl = getCatalina().getParentClassLoader();
             // Walk the class loader hierarchy. Stop at the system class loader.
@@ -870,7 +893,7 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
                 cl = cl.getParent();
             }
         }
-        // Initialize our defined Services
+        //6.执行Service的init方法
         for (int i = 0; i < services.length; i++) {
             services[i].init();
         }
@@ -878,17 +901,20 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
 
     @Override
     protected void destroyInternal() throws LifecycleException {
-        // Destroy our defined Services
+        // 1.调用所有的service的destroy()方法
         for (int i = 0; i < services.length; i++) {
             services[i].destroy();
         }
 
+        //2.调用JNDI的destroy()
         globalNamingResources.destroy();
 
+        //3.解绑MBean,和String Cache，对应init方法中的注册。
         unregister(onameMBeanFactory);
 
         unregister(onameStringCache);
 
+        //4.调用父类的方法
         super.destroyInternal();
     }
 

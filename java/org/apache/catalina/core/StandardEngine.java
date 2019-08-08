@@ -44,12 +44,7 @@ import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 
 /**
- * Standard implementation of the <b>Engine</b> interface.  Each
- * child container must be a Host implementation to process the specific
- * fully qualified host name of that virtual host. <br>
- * You can set the jvmRoute direct or with the System.property <b>jvmRoute</b>.
- *
- * @author Craig R. McClanahan
+ * Engine接口的标准实现。
  */
 public class StandardEngine extends ContainerBase implements Engine {
 
@@ -60,18 +55,22 @@ public class StandardEngine extends ContainerBase implements Engine {
 
     /**
      * Create a new StandardEngine component with the default basic Valve.
+     * StandardEngine的初始化操作，使用默认的StandardEngineValve类放在pipeline中。
+     * 并设置jvmRoute（负载均衡的时候使用）
      */
     public StandardEngine() {
 
         super();
+        //1.给pipeline设置默认的Valve
         pipeline.setBasic(new StandardEngineValve());
         /* Set the jmvRoute using the system property jvmRoute */
+        //2.设置jvmRoute
         try {
             setJvmRoute(System.getProperty("jvmRoute"));
         } catch(Exception ex) {
             log.warn(sm.getString("standardEngine.jvmRouteFail"));
         }
-        // By default, the engine will hold the reloading thread
+        //3.Engine的默认值为10，允许后台线程执行
         backgroundProcessorDelay = 10;
 
     }
@@ -81,20 +80,21 @@ public class StandardEngine extends ContainerBase implements Engine {
 
 
     /**
-     * Host name to use when no server host, or an unknown host,
-     * is specified in the request.
+     * 当请求没有server host或者unknown host时的默认hostname
      */
     private String defaultHost = null;
 
 
     /**
-     * The <code>Service</code> that owns this Engine, if any.
+     * 拥有此引擎的Service
      */
     private Service service = null;
 
     /**
-     * The JVM Route ID for this Tomcat instance. All Route ID's must be unique
-     * across the cluster.
+     * Tomcat实例的JVM Route id。所有的Route id必须唯一
+     *
+     * jvmRoute：在负载均衡场景下必须定义该参数，来保证session affinity可用，对于集群中所有Tomcat服务器来讲定义的
+     * 名称必须是唯一的，该名称将会被添加到生成的会话标识符中。
      */
     private String jvmRouteId;
 
@@ -127,7 +127,7 @@ public class StandardEngine extends ContainerBase implements Engine {
 
 
     /**
-     * Return the default host.
+     * 返回默认的host
      */
     @Override
     public String getDefaultHost() {
@@ -138,9 +138,7 @@ public class StandardEngine extends ContainerBase implements Engine {
 
 
     /**
-     * Set the default host.
-     *
-     * @param host The new default host
+     * 设置默认的host，并触发监听器事件
      */
     @Override
     public void setDefaultHost(String host) {
@@ -212,9 +210,10 @@ public class StandardEngine extends ContainerBase implements Engine {
     @Override
     public void addChild(Container child) {
 
-        if (!(child instanceof Host))
+        if (!(child instanceof Host)) {
             throw new IllegalArgumentException
                 (sm.getString("standardEngine.notHost"));
+        }
         super.addChild(child);
 
     }
@@ -235,6 +234,10 @@ public class StandardEngine extends ContainerBase implements Engine {
     }
 
 
+    /**
+     * Engine的init()方法。
+     * @throws LifecycleException
+     */
     @Override
     protected void initInternal() throws LifecycleException {
         // Ensure that a Realm is present before any attempt is made to start
@@ -255,8 +258,9 @@ public class StandardEngine extends ContainerBase implements Engine {
     protected synchronized void startInternal() throws LifecycleException {
 
         // Log our server identification information
-        if(log.isInfoEnabled())
+        if(log.isInfoEnabled()) {
             log.info( "Starting Servlet Engine: " + ServerInfo.getServerInfo());
+        }
 
         // Standard container startup
         super.startInternal();
@@ -336,8 +340,9 @@ public class StandardEngine extends ContainerBase implements Engine {
      */
     @Override
     public ClassLoader getParentClassLoader() {
-        if (parentClassLoader != null)
+        if (parentClassLoader != null) {
             return (parentClassLoader);
+        }
         if (service != null) {
             return (service.getParentClassLoader());
         }
@@ -454,7 +459,9 @@ public class StandardEngine extends ContainerBase implements Engine {
 
         @Override
         public void lifecycleEvent(LifecycleEvent event) {
-            if (disabled) return;
+            if (disabled) {
+                return;
+            }
 
             String type = event.getType();
             if (Lifecycle.AFTER_START_EVENT.equals(type) ||
@@ -470,7 +477,9 @@ public class StandardEngine extends ContainerBase implements Engine {
 
         @Override
         public void propertyChange(PropertyChangeEvent evt) {
-            if (disabled) return;
+            if (disabled) {
+                return;
+            }
             if ("defaultHost".equals(evt.getPropertyName())) {
                 // Force re-calculation and disable listener since it won't
                 // be re-used
@@ -482,7 +491,9 @@ public class StandardEngine extends ContainerBase implements Engine {
         @Override
         public void containerEvent(ContainerEvent event) {
             // Only useful for hosts
-            if (disabled) return;
+            if (disabled) {
+                return;
+            }
             if (Container.ADD_CHILD_EVENT.equals(event.getType())) {
                 Context context = (Context) event.getData();
                 if ("".equals(context.getPath())) {
