@@ -45,12 +45,8 @@ import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.ExceptionUtils;
 
 /**
- * Standard implementation of the <b>Host</b> interface.  Each
- * child container must be a Context implementation to process the
- * requests directed to a particular web application.
- *
- * @author Craig R. McClanahan
- * @author Remy Maucherat
+ * Host接口的标准实现。
+ * 每个子容器都必须是一个Context的实现，来处理对特定webapp的请求
  */
 public class StandardHost extends ContainerBase implements Host {
 
@@ -59,8 +55,8 @@ public class StandardHost extends ContainerBase implements Host {
     // ----------------------------------------------------------- Constructors
 
 
-    /**
-     * Create a new StandardHost component with the default basic Valve.
+    /**e.
+     * 构造器，并为Pipeline设置Valve
      */
     public StandardHost() {
 
@@ -74,93 +70,96 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * The set of aliases for this Host.
+     * 当前host的别名列表
      */
     private String[] aliases = new String[0];
 
+    /**
+     * 设置别名时的对象锁
+     */
     private final Object aliasesLock = new Object();
 
 
     /**
-     * The application root for this Host.
+     * 当前host的app的根路径，默认为webapps
      */
     private String appBase = "webapps";
+
+    /**
+     * 当前host的app的根路径的File对象，其实就是把appBase的路径转成File
+     */
     private volatile File appBaseFile = null;
 
     /**
-     * The XML root for this Host.
+     * 当前host的XML配置根路径
      */
     private String xmlBase = null;
 
     /**
-     * host's default config path
+     * host的默认配置路径
      */
     private volatile File hostConfigBase = null;
 
     /**
-     * The auto deploy flag for this Host.
+     * 自动部署的flag
      */
     private boolean autoDeploy = true;
 
 
     /**
-     * The Java class name of the default context configuration class
-     * for deployed web applications.
+     * 对部署的app，默认的上下文配置类的类名
      */
     private String configClass =
         "org.apache.catalina.startup.ContextConfig";
 
 
     /**
-     * The Java class name of the default Context implementation class for
-     * deployed web applications.
+     * 对部署的app，默认的上下文实现类的类名
      */
     private String contextClass =
         "org.apache.catalina.core.StandardContext";
 
 
     /**
-     * The deploy on startup flag for this Host.
+     * 启动时部署的flag
      */
     private boolean deployOnStartup = true;
 
 
     /**
-     * deploy Context XML config files property.
+     * 部署Context XML配置文件属性
+     * (安全性是否已经开启)
      */
     private boolean deployXML = !Globals.IS_SECURITY_ENABLED;
 
 
     /**
-     * Should XML files be copied to
-     * $CATALINA_BASE/conf/&lt;engine&gt;/&lt;host&gt; by default when
-     * a web application is deployed?
+     * 当一个web app被部署后，XML文件应该被复制到$CATALINA_BASE/conf/engine/host
      */
     private boolean copyXML = false;
 
 
     /**
-     * The Java class name of the default error reporter implementation class
-     * for deployed web applications.
+     * 默认的错误报告器的实现类类名，针对web app部署的
      */
     private String errorReportValveClass =
         "org.apache.catalina.valves.ErrorReportValve";
 
 
     /**
-     * Unpack WARs property.
+     * 解压WARS属性
      */
     private boolean unpackWARs = true;
 
 
     /**
-     * Work Directory base for applications.
+     * app的基础工作路径
      */
     private String workDir = null;
 
 
     /**
-     * Should we create directories upon startup for appBase and xmlBase
+     * 在启动时，是否为appBase和xmlBase创建路径
      */
     private boolean createDirs = true;
 
@@ -181,6 +180,9 @@ public class StandardHost extends ContainerBase implements Host {
     private Pattern deployIgnore = null;
 
 
+    /**
+     * 是否卸载旧版本，默认是不卸载
+     */
     private boolean undeployOldVersions = false;
 
     private boolean failCtxIfServletStartFails = false;
@@ -207,8 +209,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * Return the application root for this Host.  This can be an absolute
-     * pathname, a relative pathname, or a URL.
+     * 返回当前host的app根路径
      */
     @Override
     public String getAppBase() {
@@ -217,7 +218,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * ({@inheritDoc}
+     * 获取当前host的app根路径的File对象
      */
     @Override
     public File getAppBaseFile() {
@@ -226,6 +227,7 @@ public class StandardHost extends ContainerBase implements Host {
             return appBaseFile;
         }
 
+        //把当前host的app根路径转为File对象
         File file = new File(getAppBase());
 
         // If not absolute, make it absolute
@@ -246,17 +248,17 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * Set the application root for this Host.  This can be an absolute
-     * pathname, a relative pathname, or a URL.
-     *
-     * @param appBase The new application root
+     * 设置当前host的web app的根路径
      */
     @Override
     public void setAppBase(String appBase) {
 
+        //检查新的app根路径是否为空
         if (appBase.trim().equals("")) {
             log.warn(sm.getString("standardHost.problematicAppBase", getName()));
         }
+
+        //给this.appBase设置新值，并唤醒属性改变的监听事件
         String oldAppBase = this.appBase;
         this.appBase = appBase;
         support.firePropertyChange("appBase", oldAppBase, this.appBase);
@@ -265,10 +267,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * Return the XML root for this Host.  This can be an absolute
-     * pathname, a relative pathname, or a URL.
-     * If null, defaults to
-     * ${catalina.base}/conf/&lt;engine name&gt;/&lt;host name&gt; directory
+     * 返回当前host的xml配置文件路径
      */
     @Override
     public String getXmlBase() {
@@ -279,12 +278,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * Set the Xml root for this Host.  This can be an absolute
-     * pathname, a relative pathname, or a URL.
-     * If null, defaults to
-     * ${catalina.base}/conf/&lt;engine name&gt;/&lt;host name&gt; directory
-     *
-     * @param xmlBase The new XML root
+     * 设置host配置文件的XML根路径
      */
     @Override
     public void setXmlBase(String xmlBase) {
@@ -297,10 +291,12 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * ({@inheritDoc}
+     * 当前host的配置xml文件
+     * 区别上面的getXmlBase(),一个是针对路径的，一个是转换成File对象了
      */
     @Override
     public File getConfigBaseFile() {
+        //如果hostConfigBase字段不为null，就直接返回
         if (hostConfigBase != null) {
             return hostConfigBase;
         }
@@ -319,8 +315,9 @@ public class StandardHost extends ContainerBase implements Host {
             path = xmlDir.toString();
         }
         File file = new File(path);
-        if (!file.isAbsolute())
+        if (!file.isAbsolute()) {
             file = new File(getCatalinaBase(), path);
+        }
         try {
             file = file.getCanonicalFile();
         } catch (IOException e) {// ignore
@@ -331,8 +328,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * @return <code>true</code> if the Host will attempt to create directories for appBase and xmlBase
-     * unless they already exist.
+     * 返回是否需要在启动时就创建appBase和xmlBase的路径
      */
     @Override
     public boolean getCreateDirs() {
@@ -340,8 +336,7 @@ public class StandardHost extends ContainerBase implements Host {
     }
 
     /**
-     * Set to <code>true</code> if the Host should attempt to create directories for xmlBase and appBase upon startup
-     * @param createDirs the new flag value
+     * 设置启动时，是否创建路径
      */
     @Override
     public void setCreateDirs(boolean createDirs) {
@@ -349,8 +344,7 @@ public class StandardHost extends ContainerBase implements Host {
     }
 
     /**
-     * @return the value of the auto deploy flag.  If true, it indicates that
-     * this host's child webapps will be dynamically deployed.
+     * 获取是否自动部署
      */
     @Override
     public boolean getAutoDeploy() {
@@ -361,9 +355,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * Set the auto deploy flag value for this host.
-     *
-     * @param autoDeploy The new auto deploy flag
+     * 设置自动部署的值，并唤醒属性监听
      */
     @Override
     public void setAutoDeploy(boolean autoDeploy) {
@@ -377,8 +369,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * @return the Java class name of the context configuration class
-     * for new web applications.
+     * 返回app的上下文的配置类名
      */
     @Override
     public String getConfigClass() {
@@ -389,10 +380,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * Set the Java class name of the context configuration class
-     * for new web applications.
-     *
-     * @param configClass The new context configuration class
+     * 设置app的上下文的配置类的类名
      */
     @Override
     public void setConfigClass(String configClass) {
@@ -406,8 +394,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * @return the Java class name of the Context implementation class
-     * for new web applications.
+     * 返回app的上下文的实现类类名
      */
     public String getContextClass() {
 
@@ -417,10 +404,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * Set the Java class name of the Context implementation class
-     * for new web applications.
-     *
-     * @param contextClass The new context implementation class
+     * 设置app的上下文的实现类的类名，并唤醒属性监听
      */
     public void setContextClass(String contextClass) {
 
@@ -433,9 +417,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * @return the value of the deploy on startup flag.  If <code>true</code>, it indicates
-     * that this host's child webapps should be discovered and automatically
-     * deployed at startup time.
+     * 返回启动时部署的flag
      */
     @Override
     public boolean getDeployOnStartup() {
@@ -446,9 +428,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * Set the deploy on startup flag value for this host.
-     *
-     * @param deployOnStartup The new deploy on startup flag
+     * 设置启动时是否部署
      */
     @Override
     public void setDeployOnStartup(boolean deployOnStartup) {
@@ -462,7 +442,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * @return <code>true</code> if XML context descriptors should be deployed.
+     * 如果XML Context 描述符应该被部署，则返回true
      */
     public boolean isDeployXML() {
 
@@ -472,9 +452,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * Deploy XML Context config files flag mutator.
-     *
-     * @param deployXML <code>true</code> if context descriptors should be deployed
+     * 设置Context XML配置文件是否为true
      */
     public void setDeployXML(boolean deployXML) {
 
@@ -484,7 +462,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * @return the copy XML config file flag for this component.
+     * 返回是否复制XML文件
      */
     public boolean isCopyXML() {
 
@@ -494,9 +472,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * Set the copy XML config file flag for this component.
-     *
-     * @param copyXML The new copy XML flag
+     * 设置是否复制XML文件
      */
     public void setCopyXML(boolean copyXML) {
 
@@ -506,8 +482,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * @return the Java class name of the error report valve class
-     * for new web applications.
+     * 返回一个新web app的错误报告器类的类名
      */
     public String getErrorReportValveClass() {
 
@@ -517,15 +492,13 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * Set the Java class name of the error report valve class
-     * for new web applications.
-     *
-     * @param errorReportValveClass The new error report valve class
+     * 为一个新的web app设置错误报告器的类名
      */
     public void setErrorReportValveClass(String errorReportValveClass) {
 
         String oldErrorReportValveClassClass = this.errorReportValveClass;
         this.errorReportValveClass = errorReportValveClass;
+        //更换之后要唤醒属性监听器
         support.firePropertyChange("errorReportValveClass",
                                    oldErrorReportValveClassClass,
                                    this.errorReportValveClass);
@@ -546,19 +519,15 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * Set the canonical, fully qualified, name of the virtual host
-     * this Container represents.
-     *
-     * @param name Virtual host name
-     *
-     * @exception IllegalArgumentException if name is null
+     * 设置当前容器的名称，唤醒属性监听事件
      */
     @Override
     public void setName(String name) {
 
-        if (name == null)
+        if (name == null) {
             throw new IllegalArgumentException
                 (sm.getString("standardHost.nullName"));
+        }
 
         name = name.toLowerCase(Locale.ENGLISH);      // Internally all names are lower case
 
@@ -570,7 +539,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * @return <code>true</code> if WARs should be unpacked on deployment.
+     * 判断是否解压WARS
      */
     public boolean isUnpackWARs() {
 
@@ -580,9 +549,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * Unpack WARs flag mutator.
-     *
-     * @param unpackWARs <code>true</code> to unpack WARs on deployment
+     * 设置是否解压WARS
      */
     public void setUnpackWARs(boolean unpackWARs) {
 
@@ -592,7 +559,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * @return host work directory base.
+     * 返回app的基本工作路径
      */
     public String getWorkDir() {
 
@@ -601,9 +568,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * Set host work directory base.
-     *
-     * @param workDir the new base work folder for this host
+     * 设置当前虚拟机的基本工作路径
      */
     public void setWorkDir(String workDir) {
 
@@ -612,9 +577,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * @return the regular expression that defines the files and directories in
-     * the host's {@link #getAppBase} that will be ignored by the automatic
-     * deployment process.
+     * 获取自动部署时，需要忽略的文件或地址
      */
     @Override
     public String getDeployIgnore() {
@@ -626,9 +589,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * @return the compiled regular expression that defines the files and
-     * directories in the host's {@link #getAppBase} that will be ignored by the
-     * automatic deployment process.
+     * 获取自动部署时需要忽略的文件或地址的正则表达式
      */
     @Override
     public Pattern getDeployIgnorePattern() {
@@ -637,11 +598,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * Set the regular expression that defines the files and directories in
-     * the host's {@link #getAppBase} that will be ignored by the automatic
-     * deployment process.
-     *
-     * @param deployIgnore the regexp
+     * 设置自动部署时需要忽略的文件或者地址
      */
     @Override
     public void setDeployIgnore(String deployIgnore) {
@@ -663,7 +620,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * @return <code>true</code> if a webapp start should fail if a Servlet startup fails
+     * 查询是否一个Servlet启动失败，这个webapp也启动失败
      */
     public boolean isFailCtxIfServletStartFails() {
         return failCtxIfServletStartFails;
@@ -671,14 +628,13 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * Change the behavior of Servlet startup errors on web application starts.
-     * @param failCtxIfServletStartFails <code>false</code> to ignore errors on Servlets which
-     *    are stated when the web application starts
+     * 改变Servlet启动失败对这个web app的影响
      */
     public void setFailCtxIfServletStartFails(
             boolean failCtxIfServletStartFails) {
         boolean oldFailCtxIfServletStartFails = this.failCtxIfServletStartFails;
         this.failCtxIfServletStartFails = failCtxIfServletStartFails;
+        //唤醒属性监听事件
         support.firePropertyChange("failCtxIfServletStartFails",
                 oldFailCtxIfServletStartFails,
                 failCtxIfServletStartFails);
@@ -689,9 +645,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * Add an alias name that should be mapped to this same Host.
-     *
-     * @param alias The alias to be added
+     * 给当前Host添加别名
      */
     @Override
     public void addAlias(String alias) {
@@ -699,19 +653,21 @@ public class StandardHost extends ContainerBase implements Host {
         alias = alias.toLowerCase(Locale.ENGLISH);
 
         synchronized (aliasesLock) {
-            // Skip duplicate aliases
+            // 先循环一遍，检查是否重复
             for (int i = 0; i < aliases.length; i++) {
-                if (aliases[i].equals(alias))
+                if (aliases[i].equals(alias)) {
                     return;
+                }
             }
-            // Add this alias to the list
+            // 添加别名到列表中
             String newAliases[] = new String[aliases.length + 1];
-            for (int i = 0; i < aliases.length; i++)
+            for (int i = 0; i < aliases.length; i++) {
                 newAliases[i] = aliases[i];
+            }
             newAliases[aliases.length] = alias;
             aliases = newAliases;
         }
-        // Inform interested listeners
+        // 提醒监听事件
         fireContainerEvent(ADD_ALIAS_EVENT, alias);
 
     }
@@ -728,9 +684,10 @@ public class StandardHost extends ContainerBase implements Host {
 
         child.addLifecycleListener(new MemoryLeakTrackingListener());
 
-        if (!(child instanceof Context))
+        if (!(child instanceof Context)) {
             throw new IllegalArgumentException
                 (sm.getString("standardHost.notContext"));
+        }
         super.addChild(child);
 
     }
@@ -782,8 +739,7 @@ public class StandardHost extends ContainerBase implements Host {
     }
 
     /**
-     * @return the set of alias names for this Host.  If none are defined,
-     * a zero length array is returned.
+     * 返回当前host的别名列表，如果没有，则返回0
      */
     @Override
     public String[] findAliases() {
@@ -796,9 +752,7 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * Remove the specified alias name from the aliases for this Host.
-     *
-     * @param alias Alias name to be removed
+     * 移除当前host中的一个指定别名
      */
     @Override
     public void removeAlias(String alias) {
@@ -807,7 +761,7 @@ public class StandardHost extends ContainerBase implements Host {
 
         synchronized (aliasesLock) {
 
-            // Make sure this alias is currently present
+            // 先检查别名是否存在，找到之后n设置为下标
             int n = -1;
             for (int i = 0; i < aliases.length; i++) {
                 if (aliases[i].equals(alias)) {
@@ -815,32 +769,30 @@ public class StandardHost extends ContainerBase implements Host {
                     break;
                 }
             }
-            if (n < 0)
+            if (n < 0) {
                 return;
+            }
 
-            // Remove the specified alias
+            // 循环移除
             int j = 0;
             String results[] = new String[aliases.length - 1];
             for (int i = 0; i < aliases.length; i++) {
-                if (i != n)
+                if (i != n) {
                     results[j++] = aliases[i];
+                }
             }
             aliases = results;
 
         }
 
-        // Inform interested listeners
+        // 叫醒监听的事件
         fireContainerEvent(REMOVE_ALIAS_EVENT, alias);
 
     }
 
 
     /**
-     * Start this component and implement the requirements
-     * of {@link org.apache.catalina.util.LifecycleBase#startInternal()}.
-     *
-     * @exception LifecycleException if this component detects a fatal error
-     *  that prevents this component from being used
+     * StandardHost的start()生命周期方法
      */
     @Override
     protected synchronized void startInternal() throws LifecycleException {
@@ -869,15 +821,14 @@ public class StandardHost extends ContainerBase implements Host {
                         errorValve), t);
             }
         }
+        //调用父类的start()方法，即ContainerBase类中的方法
         super.startInternal();
     }
 
 
     // -------------------- JMX  --------------------
     /**
-      * @return the MBean Names of the Valves associated with this Host
-      *
-      * @exception Exception if an MBean cannot be created or registered
+     * 该方法给JMX使用，返回当前host相关的所有Valves的MBean名称
       */
      public String[] getValveNames() throws Exception {
          Valve [] valves = this.getPipeline().getValves();
@@ -895,6 +846,9 @@ public class StandardHost extends ContainerBase implements Host {
 
      }
 
+    /**
+     * 查询当前host的别名列表
+     */
     public String[] getAliases() {
         synchronized (aliasesLock) {
             return aliases;

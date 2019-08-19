@@ -22,26 +22,13 @@ import java.util.regex.Pattern;
 
 
 /**
- * A <b>Host</b> is a Container that represents a virtual host in the
- * Catalina servlet engine.  It is useful in the following types of scenarios:
- * <ul>
- * <li>You wish to use Interceptors that see every single request processed
- *     by this particular virtual host.
- * <li>You wish to run Catalina in with a standalone HTTP connector, but still
- *     want support for multiple virtual hosts.
- * </ul>
- * In general, you would not use a Host when deploying Catalina connected
- * to a web server (such as Apache), because the Connector will have
- * utilized the web server's facilities to determine which Context (or
- * perhaps even which Wrapper) should be utilized to process this request.
- * <p>
- * The parent Container attached to a Host is generally an Engine, but may
- * be some other implementation, or may be omitted if it is not necessary.
- * <p>
- * The child containers attached to a Host are generally implementations
- * of Context (representing an individual servlet context).
+ * Host也是一个容器，在Engine中代表了一个虚拟主机，它被使用在以下几个场景中：
+ * - 你希望使用拦截器来观察指定虚拟主机上的每一个请求；
+ * - 你希望使用单个HTTP连接器执行Catalina，但是还希望支持多个虚拟host
  *
- * @author Craig R. McClanahan
+ * 通常，在部署了一个Catalina服务时，不会使用Host直接连接web服务，因为连接器能利用web Server
+ * 的一些能力决定由那一个Context或者Wrapper来处理请求。
+ * 父容器只有Engine，子容器一般是Context(代表单个servlet上下文)
  */
 public interface Host extends Container {
 
@@ -50,15 +37,13 @@ public interface Host extends Container {
 
 
     /**
-     * The ContainerEvent event type sent when a new alias is added
-     * by <code>addAlias()</code>.
+     * host的一些事件定义，添加别名
      */
     public static final String ADD_ALIAS_EVENT = "addAlias";
 
 
     /**
-     * The ContainerEvent event type sent when an old alias is removed
-     * by <code>removeAlias()</code>.
+     * host的一些事件定义，移除别名
      */
     public static final String REMOVE_ALIAS_EVENT = "removeAlias";
 
@@ -67,165 +52,120 @@ public interface Host extends Container {
 
 
     /**
-     * @return the XML root for this Host.  This can be an absolute
-     * pathname, a relative pathname, or a URL.
-     * If null, defaults to
-     * ${catalina.base}/conf/&lt;engine name&gt;/&lt;host name&gt; directory
+     * 当前host的XML配置路径，可以是一个绝对路径，或相对路径，或一个URL
+     * 如果为null，则默认地址为${catalina.base}/conf/engine name/host name
      */
     public String getXmlBase();
 
     /**
-     * Set the Xml root for this Host.  This can be an absolute
-     * pathname, a relative pathname, or a URL.
-     * If null, defaults to
-     * ${catalina.base}/conf/&lt;engine name&gt;/&lt;host name&gt; directory
-     * @param xmlBase The new XML root
+     * 设置host的XML配置路径
      */
     public void setXmlBase(String xmlBase);
 
     /**
-     * @return a default configuration path of this Host. The file will be
-     * canonical if possible.
+     * 当前host的配置xml文件
+     * 区别上面的getXmlBase(),一个是针对路径的，一个是转换成File对象了
      */
     public File getConfigBaseFile();
 
     /**
-     * @return the application root for this Host.  This can be an absolute
-     * pathname, a relative pathname, or a URL.
+     * 当前host的app的路径
      */
     public String getAppBase();
 
 
     /**
-     * @return an absolute {@link File} for the appBase of this Host. The file
-     * will be canonical if possible. There is no guarantee that that the
-     * appBase exists.
+     * 获取app放的目录的文件引用
      */
     public File getAppBaseFile();
 
 
     /**
-     * Set the application root for this Host.  This can be an absolute
-     * pathname, a relative pathname, or a URL.
-     *
-     * @param appBase The new application root
+     * 设置App存放路径
      */
     public void setAppBase(String appBase);
 
 
     /**
-     * @return the value of the auto deploy flag.  If true, it indicates that
-     * this host's child webapps should be discovered and automatically
-     * deployed dynamically.
+     * 查询是否自动部署，如果值为true，表名webapps会自动被发现然后被自动部署
      */
     public boolean getAutoDeploy();
 
 
     /**
-     * Set the auto deploy flag value for this host.
-     *
-     * @param autoDeploy The new auto deploy flag
+     * 设置当前Host是否自动开始自动部署
      */
     public void setAutoDeploy(boolean autoDeploy);
 
 
     /**
-     * @return the Java class name of the context configuration class
-     * for new web applications.
+     * 新app的context 配置类名称
      */
     public String getConfigClass();
 
 
     /**
-     * Set the Java class name of the context configuration class
-     * for new web applications.
-     *
-     * @param configClass The new context configuration class
+     * 设置新web app的配置类的class name
      */
     public void setConfigClass(String configClass);
 
 
     /**
-     * @return the value of the deploy on startup flag.  If true, it indicates
-     * that this host's child webapps should be discovered and automatically
-     * deployed.
+     * 启动的时候自动部署
      */
     public boolean getDeployOnStartup();
 
 
     /**
-     * Set the deploy on startup flag value for this host.
-     *
-     * @param deployOnStartup The new deploy on startup flag
+     * 设置启动时是否自动部署
      */
     public void setDeployOnStartup(boolean deployOnStartup);
 
 
     /**
-     * @return the regular expression that defines the files and directories in
-     * the host's appBase that will be ignored by the automatic deployment
-     * process.
+     * 获取自动部署时，需要忽略的文件或地址
      */
     public String getDeployIgnore();
 
 
     /**
-     * @return the compiled regular expression that defines the files and
-     * directories in the host's appBase that will be ignored by the automatic
-     * deployment process.
+     * 获取自动部署时需要忽略的文件或地址的正则表达式
      */
     public Pattern getDeployIgnorePattern();
 
 
     /**
-     * Set the regular expression that defines the files and directories in
-     * the host's appBase that will be ignored by the automatic deployment
-     * process.
-     *
-     * @param deployIgnore A regular expression matching file names
+     * 设置自动部署时需要忽略的文件或者地址
      */
     public void setDeployIgnore(String deployIgnore);
 
 
     /**
-     * @return the executor that is used for starting and stopping contexts. This
-     * is primarily for use by components deploying contexts that want to do
-     * this in a multi-threaded manner.
+     * 用于启动和停止context的executor
      */
     public ExecutorService getStartStopExecutor();
 
 
     /**
-     * Returns <code>true</code> if the Host will attempt to create directories for appBase and xmlBase
-     * unless they already exist.
-     * @return true if the Host will attempt to create directories
+     * 如果为true的话，那么会尝试为应用程序和host的配置创建文件夹
      */
     public boolean getCreateDirs();
 
 
     /**
-     * Should the Host attempt to create directories for xmlBase and appBase
-     * upon startup.
-     *
-     * @param createDirs The new value for this flag
+     * 设置是否需要为xmlBean和appBase尝试创建文件夹
      */
     public void setCreateDirs(boolean createDirs);
 
 
     /**
-     * @return <code>true</code> of the Host is configured to automatically undeploy old
-     * versions of applications deployed using parallel deployment. This only
-     * takes effect is {@link #getAutoDeploy()} also returns <code>true</code>.
+     * 查询是否自动卸载程序的老版本
      */
     public boolean getUndeployOldVersions();
 
 
     /**
-     * Set to <code>true</code> if the Host should automatically undeploy old versions of
-     * applications deployed using parallel deployment. This only takes effect
-     * if {@link #getAutoDeploy()} returns <code>true</code>.
-     *
-     * @param undeployOldVersions The new value for this flag
+     * 设置是否自动卸载程序的老版本
      */
     public void setUndeployOldVersions(boolean undeployOldVersions);
 
@@ -233,24 +173,19 @@ public interface Host extends Container {
     // --------------------------------------------------------- Public Methods
 
     /**
-     * Add an alias name that should be mapped to this same Host.
-     *
-     * @param alias The alias to be added
+     * 为当前host添加别名
      */
     public void addAlias(String alias);
 
 
     /**
-     * @return the set of alias names for this Host.  If none are defined,
-     * a zero length array is returned.
+     * 获取当前host的所有别名
      */
     public String[] findAliases();
 
 
     /**
-     * Remove the specified alias name from the aliases for this Host.
-     *
-     * @param alias Alias name to be removed
+     * 移除一个指定的别名
      */
     public void removeAlias(String alias);
 }

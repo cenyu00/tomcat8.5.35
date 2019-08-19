@@ -39,16 +39,7 @@ import org.apache.tomcat.util.ExceptionUtils;
 
 
 /**
- * Standard implementation of a processing <b>Pipeline</b> that will invoke
- * a series of Valves that have been configured to be called in order.  This
- * implementation can be used for any type of Container.
- *
- * <b>IMPLEMENTATION WARNING</b> - This implementation assumes that no
- * calls to <code>addValve()</code> or <code>removeValve</code> are allowed
- * while a request is currently being processed.  Otherwise, the mechanism
- * by which per-thread state is maintained will need to be modified.
- *
- * @author Craig R. McClanahan
+ * Pipeline接口的标准实现
  */
 
 public class StandardPipeline extends LifecycleBase
@@ -60,7 +51,7 @@ public class StandardPipeline extends LifecycleBase
 
 
     /**
-     * Construct a new StandardPipeline instance with no associated Container.
+     * 无参构造器
      */
     public StandardPipeline() {
 
@@ -70,10 +61,7 @@ public class StandardPipeline extends LifecycleBase
 
 
     /**
-     * Construct a new StandardPipeline instance that is associated with the
-     * specified Container.
-     *
-     * @param container The container we should be associated with
+     * 指定一个容器来构造一个与之相关的pipeline
      */
     public StandardPipeline(Container container) {
 
@@ -87,19 +75,19 @@ public class StandardPipeline extends LifecycleBase
 
 
     /**
-     * The basic Valve (if any) associated with this Pipeline.
+     * pipeline的basic Valve
      */
     protected Valve basic = null;
 
 
     /**
-     * The Container with which this Pipeline is associated.
+     * pipeline相关的container
      */
     protected Container container = null;
 
 
     /**
-     * The first valve associated with this Pipeline.
+     * pipeline的first valve
      */
     protected Valve first = null;
 
@@ -133,7 +121,7 @@ public class StandardPipeline extends LifecycleBase
     // ------------------------------------------------------ Contained Methods
 
     /**
-     * Return the Container with which this Pipeline is associated.
+     * 返回相关的容器
      */
     @Override
     public Container getContainer() {
@@ -144,9 +132,7 @@ public class StandardPipeline extends LifecycleBase
 
 
     /**
-     * Set the Container with which this Pipeline is associated.
-     *
-     * @param container The new associated container
+     * 设置相关的容器
      */
     @Override
     public void setContainer(Container container) {
@@ -177,9 +163,11 @@ public class StandardPipeline extends LifecycleBase
         if (current == null) {
             current = basic;
         }
+        //循环启动当前pipeline的所有Valve
         while (current != null) {
-            if (current instanceof Lifecycle)
+            if (current instanceof Lifecycle) {
                 ((Lifecycle) current).start();
+            }
             current = current.getNext();
         }
 
@@ -205,8 +193,9 @@ public class StandardPipeline extends LifecycleBase
             current = basic;
         }
         while (current != null) {
-            if (current instanceof Lifecycle)
+            if (current instanceof Lifecycle) {
                 ((Lifecycle) current).stop();
+            }
             current = current.getNext();
         }
     }
@@ -237,8 +226,7 @@ public class StandardPipeline extends LifecycleBase
 
 
     /**
-     * <p>Return the Valve instance that has been distinguished as the basic
-     * Valve for this Pipeline (if any).
+     * 返回pipeline中的Valve
      */
     @Override
     public Valve getBasic() {
@@ -265,8 +253,9 @@ public class StandardPipeline extends LifecycleBase
 
         // Change components if necessary
         Valve oldBasic = this.basic;
-        if (oldBasic == valve)
+        if (oldBasic == valve) {
             return;
+        }
 
         // Stop the old component if necessary
         if (oldBasic != null) {
@@ -287,8 +276,9 @@ public class StandardPipeline extends LifecycleBase
         }
 
         // Start the new component if necessary
-        if (valve == null)
+        if (valve == null) {
             return;
+        }
         if (valve instanceof Contained) {
             ((Contained) valve).setContainer(this.container);
         }
@@ -339,8 +329,9 @@ public class StandardPipeline extends LifecycleBase
     public void addValve(Valve valve) {
 
         // Validate that we can add this Valve
-        if (valve instanceof Contained)
+        if (valve instanceof Contained) {
             ((Contained) valve).setContainer(this.container);
+        }
 
         // Start the new component if necessary
         if (getState().isAvailable()) {
@@ -439,10 +430,13 @@ public class StandardPipeline extends LifecycleBase
             current = current.getNext();
         }
 
-        if (first == basic) first = null;
+        if (first == basic) {
+            first = null;
+        }
 
-        if (valve instanceof Contained)
+        if (valve instanceof Contained) {
             ((Contained) valve).setContainer(null);
+        }
 
         if (valve instanceof Lifecycle) {
             // Stop this valve if necessary

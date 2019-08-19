@@ -24,18 +24,7 @@ import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
 
 /**
- * <p>A <b>Valve</b> is a request processing component associated with a
- * particular Container.  A series of Valves are generally associated with
- * each other into a Pipeline.  The detailed contract for a Valve is included
- * in the description of the <code>invoke()</code> method below.</p>
- *
- * <b>HISTORICAL NOTE</b>:  The "Valve" name was assigned to this concept
- * because a valve is what you use in a real world pipeline to control and/or
- * modify flows through it.
- *
- * @author Craig R. McClanahan
- * @author Gunnar Rjnning
- * @author Peter Donald
+ * 一个Valve是跟指定容器相关的request处理组件。一系列相关的Valve会被放入同一个pipeline。
  */
 public interface Valve {
 
@@ -43,15 +32,13 @@ public interface Valve {
     //-------------------------------------------------------------- Properties
 
     /**
-     * @return the next Valve in the pipeline containing this Valve, if any.
+     * 返回pipeline中下一个Valve
      */
     public Valve getNext();
 
 
     /**
-     * Set the next Valve in the pipeline containing this Valve.
-     *
-     * @param valve The new next valve, or <code>null</code> if none
+     * 设置当前Valve的下一个Valve
      */
     public void setNext(Valve valve);
 
@@ -60,32 +47,18 @@ public interface Valve {
 
 
     /**
-     * Execute a periodic task, such as reloading, etc. This method will be
-     * invoked inside the classloading context of this container. Unexpected
-     * throwables will be caught and logged.
+     * 后台执行的方法，该方法应该在对应容器的上下文中被调用
      */
     public void backgroundProcess();
 
 
     /**
-     * <p>Perform request processing as required by this Valve.</p>
+     * 执行request请求
+     * 一个Valve将按照顺序执行一下行为：
+     * - 检查或者修改对应request或response属性
+     * - 检查request属性，生成response，并返回
+     * - 调用下一个Valve
      *
-     * <p>An individual Valve <b>MAY</b> perform the following actions, in
-     * the specified order:</p>
-     * <ul>
-     * <li>Examine and/or modify the properties of the specified Request and
-     *     Response.
-     * <li>Examine the properties of the specified Request, completely generate
-     *     the corresponding Response, and return control to the caller.
-     * <li>Examine the properties of the specified Request and Response, wrap
-     *     either or both of these objects to supplement their functionality,
-     *     and pass them on.
-     * <li>If the corresponding Response was not generated (and control was not
-     *     returned, call the next Valve in the pipeline (if there is one) by
-     *     executing <code>getNext().invoke()</code>.
-     * <li>Examine, but not modify, the properties of the resulting Response
-     *     (which was created by a subsequently invoked Valve or Container).
-     * </ul>
      *
      * <p>A Valve <b>MUST NOT</b> do any of the following things:</p>
      * <ul>
@@ -118,5 +91,8 @@ public interface Valve {
         throws IOException, ServletException;
 
 
+    /**
+     *是否支持异步
+     */
     public boolean isAsyncSupported();
 }

@@ -146,7 +146,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
 
 
     /**
-     * 当然容器的名称
+     * 当前容器的名称
      */
     protected String name = null;
 
@@ -836,22 +836,25 @@ private void addChildInternal(Container child) {
     }
 
 
-    /**
-     * 容器的init()方法，主要是准备好一个线程池，使用LinkedBlockingQueue队列
-     * 然后调用父类的initInternal()方法进行JMX的注册
-     */
-    @Override
-    protected void initInternal() throws LifecycleException {
-        //主要是创建一个线程池
-        BlockingQueue<Runnable> startStopQueue = new LinkedBlockingQueue<>();
-        startStopExecutor = new ThreadPoolExecutor(
-                getStartStopThreadsInternal(),
-                getStartStopThreadsInternal(), 10, TimeUnit.SECONDS,
-                startStopQueue,
-                new StartStopThreadFactory(getName() + "-startStop-"));
-        startStopExecutor.allowCoreThreadTimeOut(true);
-        super.initInternal();
-    }
+/**
+ * 容器的init()方法，主要是准备好一个线程池，使用LinkedBlockingQueue队列
+ * 然后调用父类的initInternal()方法进行JMX的注册
+ */
+@Override
+protected void initInternal() throws LifecycleException {
+    //主要是创建一个线程池
+    //1.准备一个阻塞队列
+    BlockingQueue<Runnable> startStopQueue = new LinkedBlockingQueue<>();
+    //2.使用阻塞队列创建一个线程池，赋值给当前容器的startStopExecutor
+    startStopExecutor = new ThreadPoolExecutor(
+            getStartStopThreadsInternal(),
+            getStartStopThreadsInternal(), 10, TimeUnit.SECONDS,
+            startStopQueue,
+            new StartStopThreadFactory(getName() + "-startStop-"));
+    //3.设置允许core Thread超时后可以关闭
+    startStopExecutor.allowCoreThreadTimeOut(true);
+    super.initInternal();
+}
 
 
     /**
@@ -863,18 +866,18 @@ private void addChildInternal(Container child) {
         // Start our subordinate components, if any
         logger = null;
         getLogger();
-        //获取cluster并调用cluster的start()方法
+        //1.获取cluster并调用cluster的start()方法
         Cluster cluster = getClusterInternal();
         if (cluster instanceof Lifecycle) {
             ((Lifecycle) cluster).start();
         }
-        //获取Realm，并调用realm的start()方法。
+        //2.获取Realm，并调用realm的start()方法。
         Realm realm = getRealmInternal();
         if (realm instanceof Lifecycle) {
             ((Lifecycle) realm).start();
         }
 
-        //启动当前组件的所有字组件，循环遍历，使用线程池去启动
+        //3.启动当前组件的所有子组件，循环遍历，使用线程池去启动
         Container children[] = findChildren();
         List<Future<Void>> results = new ArrayList<>();
         for (int i = 0; i < children.length; i++) {
@@ -900,68 +903,68 @@ private void addChildInternal(Container child) {
                     multiThrowable.getThrowable());
         }
 
-        //启动Pipeline
+        //4.启动Pipeline
         if (pipeline instanceof Lifecycle) {
             ((Lifecycle) pipeline).start();
         }
 
-        //设置当前生命周期的转态
+        //5.设置当前生命周期的转态
         setState(LifecycleState.STARTING);
 
-        // 启动当前容器的后台线程，定期去执行一些操作。
+        //6.启动当前容器的后台线程，定期去执行一些操作。
         threadStart();
     }
 
 
-    /**
-     * 当前容器的stop方法
-     */
-    @Override
-    protected synchronized void stopInternal() throws LifecycleException {
+/**
+ * 当前容器的stop方法
+ */
+@Override
+protected synchronized void stopInternal() throws LifecycleException {
 
-        //1.停止当前容器跑的后台线程
-        threadStop();
+    //1.停止当前容器跑的后台线程
+    threadStop();
 
-        setState(LifecycleState.STOPPING);
+    setState(LifecycleState.STOPPING);
 
-        //2.停止当前容器的pipeline
-        if (pipeline instanceof Lifecycle &&
-                ((Lifecycle) pipeline).getState().isAvailable()) {
-            ((Lifecycle) pipeline).stop();
-        }
+    //2.停止当前容器的pipeline
+    if (pipeline instanceof Lifecycle &&
+            ((Lifecycle) pipeline).getState().isAvailable()) {
+        ((Lifecycle) pipeline).stop();
+    }
 
-        //3.停止当前容器的子容器。
-        Container children[] = findChildren();
-        List<Future<Void>> results = new ArrayList<>();
-        for (int i = 0; i < children.length; i++) {
-            results.add(startStopExecutor.submit(new StopChild(children[i])));
-        }
+    //3.停止当前容器的子容器。
+    Container children[] = findChildren();
+    List<Future<Void>> results = new ArrayList<>();
+    for (int i = 0; i < children.length; i++) {
+        results.add(startStopExecutor.submit(new StopChild(children[i])));
+    }
 
-        boolean fail = false;
-        for (Future<Void> result : results) {
-            try {
-                result.get();
-            } catch (Exception e) {
-                log.error(sm.getString("containerBase.threadedStopFailed"), e);
-                fail = true;
-            }
-        }
-        if (fail) {
-            throw new LifecycleException(
-                    sm.getString("containerBase.threadedStopFailed"));
-        }
-
-        //4.停止当前容器的Realm组件。
-        Realm realm = getRealmInternal();
-        if (realm instanceof Lifecycle) {
-            ((Lifecycle) realm).stop();
-        }
-        //5.停止当前容器的cluster组件。
-        Cluster cluster = getClusterInternal();
-        if (cluster instanceof Lifecycle) {
-            ((Lifecycle) cluster).stop();
+    boolean fail = false;
+    for (Future<Void> result : results) {
+        try {
+            result.get();
+        } catch (Exception e) {
+            log.error(sm.getString("containerBase.threadedStopFailed"), e);
+            fail = true;
         }
     }
+    if (fail) {
+        throw new LifecycleException(
+                sm.getString("containerBase.threadedStopFailed"));
+    }
+
+    //4.停止当前容器的Realm组件。
+    Realm realm = getRealmInternal();
+    if (realm instanceof Lifecycle) {
+        ((Lifecycle) realm).stop();
+    }
+    //5.停止当前容器的cluster组件。
+    Cluster cluster = getClusterInternal();
+    if (cluster instanceof Lifecycle) {
+        ((Lifecycle) cluster).stop();
+    }
+}
 
     /**
      * 当前容器的destroy方法
@@ -1253,26 +1256,26 @@ private void addChildInternal(Container child) {
     }
 
 
-    /**
-     * 停止当前容器的后台运行线程。停止方法是使用interrupt()方法，并等待(join())
-     */
-    protected void threadStop() {
+/**
+ * 停止当前容器的后台运行线程。停止方法是使用interrupt()方法，并等待(join())
+ */
+protected void threadStop() {
 
-        if (thread == null) {
-            return;
-        }
-
-        threadDone = true;
-        thread.interrupt();
-        try {
-            thread.join();
-        } catch (InterruptedException e) {
-            // Ignore
-        }
-
-        thread = null;
-
+    if (thread == null) {
+        return;
     }
+
+    threadDone = true;
+    thread.interrupt();
+    try {
+        thread.join();
+    } catch (InterruptedException e) {
+        // Ignore
+    }
+
+    thread = null;
+
+}
 
 
     @Override
@@ -1311,13 +1314,19 @@ private void addChildInternal(Container child) {
                     "containerBase.backgroundProcess.unexpectedThreadDeath",
                     Thread.currentThread().getName());
             try {
+                //开始循环执行
                 while (!threadDone) {
                     try {
+                        //后台线程的间隔时间，backgroundProcessorDelay * 1s的大小。
+                        //此处可以看到backgroundProcessorDelay的字段的作用
+                        // 1.如果字段小于或等于0，就不开启后台线程
+                        // 2.如果大于0就开启后台线程，并且后台线程的执行间隔为该字段的值乘以1秒
                         Thread.sleep(backgroundProcessorDelay * 1000L);
                     } catch (InterruptedException e) {
                         // Ignore
                     }
                     if (!threadDone) {
+                        //执行后台线程的具体处理方法，参数为当前容器对象
                         processChildren(ContainerBase.this);
                     }
                 }
@@ -1339,22 +1348,20 @@ private void addChildInternal(Container child) {
             ClassLoader originalClassLoader = null;
 
             try {
-                //判断当前容器是不是Context类型，如果是需要确保当前容器的classLoader是web的class loader。
-                //就是使用它专属的类加载器
+                //1.判断当前容器是不是Context或其子类型，如果是需要确保当前容器的classLoader是web的class loader。
+                //因为直接根部署的app相关，需要使用对应的web app加载器
                 if (container instanceof Context) {
                     Loader loader = ((Context) container).getLoader();
-                    // Loader will be null for FailedContext instances
                     if (loader == null) {
                         return;
                     }
 
-                    // Ensure background processing for Contexts and Wrappers
-                    // is performed under the web app's class loader
+                    //将当前线程上下文类加载器更改为webapp类加载器
                     originalClassLoader = ((Context) container).bind(false, null);
                 }
-                //执行容器的backgroundProcess()方法
+                //2.执行容器的backgroundProcess()方法
                 container.backgroundProcess();
-                //循环所有多层子容器，调用每个子容器的backgroundProcess()方法。
+                //3.循环所有多层子容器，调用每个子容器的backgroundProcess()方法。
                 Container[] children = container.findChildren();
                 for (int i = 0; i < children.length; i++) {
                     if (children[i].getBackgroundProcessorDelay() <= 0) {

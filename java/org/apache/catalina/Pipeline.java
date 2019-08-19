@@ -21,22 +21,13 @@ package org.apache.catalina;
 import java.util.Set;
 
 /**
- * <p>Interface describing a collection of Valves that should be executed
- * in sequence when the <code>invoke()</code> method is invoked.  It is
- * required that a Valve somewhere in the pipeline (usually the last one)
- * must process the request and create the corresponding response, rather
- * than trying to pass the request on.</p>
+ * 描述一个Valve集合的接口，当被调用invoke()方法后，会被按序执行。
+ * Pipline需要一个Valve(通常是最后一个)必须处理request，并应答response。而不是传递request。
  *
- * <p>There is generally a single Pipeline instance associated with each
- * Container.  The container's normal request processing functionality is
- * generally encapsulated in a container-specific Valve, which should always
- * be executed at the end of a pipeline.  To facilitate this, the
- * <code>setBasic()</code> method is provided to set the Valve instance that
- * will always be executed last.  Other Valves will be executed in the order
- * that they were added, before the basic Valve is executed.</p>
- *
- * @author Craig R. McClanahan
- * @author Peter Donald
+ * 通常每个容器有一个与之对应的Pipeline。容器处理request请求的逻辑都放在对应的特定的Valve中，
+ * 这个Value必须在pipeline的最后被执行。为了方便这一点，提供了setBasic()方法来设置Valve实例
+ * 放到pipeline的最后一个Valve。
+ * 其他Valve将被按照添加顺序执行，一定是在basic Valve之前被执行的
  */
 public interface Pipeline {
 
@@ -45,23 +36,13 @@ public interface Pipeline {
 
 
     /**
-     * @return the Valve instance that has been distinguished as the basic
-     * Valve for this Pipeline (if any).
+     * 返回pipeline中basic Valve
      */
     public Valve getBasic();
 
 
     /**
-     * <p>Set the Valve instance that has been distinguished as the basic
-     * Valve for this Pipeline (if any).  Prior to setting the basic Valve,
-     * the Valve's <code>setContainer()</code> will be called, if it
-     * implements <code>Contained</code>, with the owning Container as an
-     * argument.  The method may throw an <code>IllegalArgumentException</code>
-     * if this Valve chooses not to be associated with this Container, or
-     * <code>IllegalStateException</code> if it is already associated with
-     * a different Container.</p>
-     *
-     * @param valve Valve to be distinguished as the basic Valve
+     * 给pipeline设置最后一个Valve，也就是basic Valve。
      */
     public void setBasic(Valve valve);
 
@@ -70,88 +51,49 @@ public interface Pipeline {
 
 
     /**
-     * <p>Add a new Valve to the end of the pipeline associated with this
-     * Container.  Prior to adding the Valve, the Valve's
-     * <code>setContainer()</code> method will be called, if it implements
-     * <code>Contained</code>, with the owning Container as an argument.
-     * The method may throw an
-     * <code>IllegalArgumentException</code> if this Valve chooses not to
-     * be associated with this Container, or <code>IllegalStateException</code>
-     * if it is already associated with a different Container.</p>
-     *
-     * <p>Implementation note: Implementations are expected to trigger the
-     * {@link Container#ADD_VALVE_EVENT} for the associated container if this
-     * call is successful.</p>
-     *
-     * @param valve Valve to be added
-     *
-     * @exception IllegalArgumentException if this Container refused to
-     *  accept the specified Valve
-     * @exception IllegalArgumentException if the specified Valve refuses to be
-     *  associated with this Container
-     * @exception IllegalStateException if the specified Valve is already
-     *  associated with a different Container
+     *  新增Valve
      */
     public void addValve(Valve valve);
 
 
     /**
-     * @return the set of Valves in the pipeline associated with this
-     * Container, including the basic Valve (if any).  If there are no
-     * such Valves, a zero-length array is returned.
+     * 返回所有的Valve
      */
     public Valve[] getValves();
 
 
     /**
-     * Remove the specified Valve from the pipeline associated with this
-     * Container, if it is found; otherwise, do nothing.  If the Valve is
-     * found and removed, the Valve's <code>setContainer(null)</code> method
-     * will be called if it implements <code>Contained</code>.
-     *
-     * <p>Implementation note: Implementations are expected to trigger the
-     * {@link Container#REMOVE_VALVE_EVENT} for the associated container if this
-     * call is successful.</p>
-     *
-     * @param valve Valve to be removed
+     * 移除Valve
      */
     public void removeValve(Valve valve);
 
 
     /**
-     * @return the Valve instance that has been distinguished as the basic
-     * Valve for this Pipeline (if any).
+     * @return the Valve instance that has been distinguished as the basic Valve for this Pipeline (if any).
      */
     public Valve getFirst();
 
     /**
-     * Returns true if all the valves in this pipeline support async, false otherwise
-     * @return true if all the valves in this pipeline support async, false otherwise
+     * 如果该pipeline中所有valve都支持异步，则返回为true
      */
     public boolean isAsyncSupported();
 
 
     /**
-     * @return the Container with which this Pipeline is associated.
+     * 获取跟该pipeline相关的容器
      */
     public Container getContainer();
 
 
     /**
-     * Set the Container with which this Pipeline is associated.
-     *
-     * @param container The new associated container
+     * 设置该Pipeline实例相关的容器实例
+
      */
     public void setContainer(Container container);
 
 
     /**
-     * Identifies the Valves, if any, in this Pipeline that do not support
-     * async.
-     *
-     * @param result The Set to which the fully qualified class names of each
-     *               Valve in this Pipeline that does not support async will be
-     *               added
+     * 表示不支持异步的Valve
      */
     public void findNonAsyncValves(Set<String> result);
 }

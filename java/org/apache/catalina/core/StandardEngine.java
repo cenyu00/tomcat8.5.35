@@ -72,7 +72,6 @@ public class StandardEngine extends ContainerBase implements Engine {
         }
         //3.Engine的默认值为10，允许后台线程执行
         backgroundProcessorDelay = 10;
-
     }
 
 
@@ -108,16 +107,12 @@ public class StandardEngine extends ContainerBase implements Engine {
     // ------------------------------------------------------------- Properties
 
     /**
-     * Obtain the configured Realm and provide a default Realm implementation
-     * when no explicit configuration is set.
-     *
-     * @return configured realm, or a {@link NullRealm} by default
+     * 检查Realm的配置，如果有配置就直接返回，如果没有配置就设置默认的Realm实现，并返回
      */
     @Override
     public Realm getRealm() {
         Realm configured = super.getRealm();
-        // If no set realm has been called - default to NullRealm
-        // This can be overridden at engine, context and host level
+        //如果没有设置Realm，则默认实现为NullRealm
         if (configured == null) {
             configured = new NullRealm();
             this.setRealm(configured);
@@ -131,9 +126,7 @@ public class StandardEngine extends ContainerBase implements Engine {
      */
     @Override
     public String getDefaultHost() {
-
         return (defaultHost);
-
     }
 
 
@@ -151,15 +144,13 @@ public class StandardEngine extends ContainerBase implements Engine {
         }
         support.firePropertyChange("defaultHost", oldDefaultHost,
                                    this.defaultHost);
-
     }
 
 
     /**
-     * Set the cluster-wide unique identifier for this Engine.
-     * This value is only useful in a load-balancing scenario.
-     * <p>
-     * This property should not be changed once it is set.
+     * 为Engine设置集群下全局唯一的标识符。
+     * 该值仅用在负载均衡的场景中。
+     * 该属性一旦设置不能再被修改
      */
     @Override
     public void setJvmRoute(String routeId) {
@@ -235,36 +226,34 @@ public class StandardEngine extends ContainerBase implements Engine {
 
 
     /**
-     * Engine的init()方法。
+     * Engine的init()方法。直接调用父类ContainerBase的该方法
+     * 父类中该方法的主要功能是，准备好一个线程池，使用LinkedBlockingQueue队列
+     * 然后调用父类的initInternal()方法进行JMX的注册
      * @throws LifecycleException
      */
     @Override
     protected void initInternal() throws LifecycleException {
-        // Ensure that a Realm is present before any attempt is made to start
-        // one. This will create the default NullRealm if necessary.
+        //确保Realm已经存在，如果没有进行配置，就初始化一个NullRealm
         getRealm();
+        //调用父类的方法
         super.initInternal();
     }
 
 
-    /**
-     * Start this component and implement the requirements
-     * of {@link org.apache.catalina.util.LifecycleBase#startInternal()}.
-     *
-     * @exception LifecycleException if this component detects a fatal error
-     *  that prevents this component from being used
-     */
-    @Override
-    protected synchronized void startInternal() throws LifecycleException {
+/**
+ *  启动当前Engine组件。具体实现方法也是调用父类ContainerBase的方法
+ */
+@Override
+protected synchronized void startInternal() throws LifecycleException {
 
-        // Log our server identification information
-        if(log.isInfoEnabled()) {
-            log.info( "Starting Servlet Engine: " + ServerInfo.getServerInfo());
-        }
-
-        // Standard container startup
-        super.startInternal();
+    // Log our server identification information
+    if(log.isInfoEnabled()) {
+        log.info( "Starting Servlet Engine: " + ServerInfo.getServerInfo());
     }
+
+    // Standard container startup
+    super.startInternal();
+}
 
 
     /**
